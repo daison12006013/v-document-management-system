@@ -25,17 +25,20 @@ A Next.js application built with TypeScript, Tailwind CSS, PostgreSQL, and sqlc.
 ### Installation
 
 1. Install dependencies (uses pnpm):
+
 ```bash
 make install
 # or directly: pnpm install
 ```
 
 2. Start PostgreSQL database:
+
 ```bash
 make db-up
 ```
 
 3. Run initial setup (install + start DB):
+
 ```bash
 make setup
 ```
@@ -43,6 +46,7 @@ make setup
 ### Development
 
 Start the development server:
+
 ```bash
 make dev
 ```
@@ -51,24 +55,57 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Database
 
-Generate TypeScript types from SQL queries:
+Run database migrations (runs all .sql files in database/schema in ascending order):
+
+```bash
+make db-migrate
+```
+
+Generate TypeScript types from SQLc queries:
+
 ```bash
 make db-generate
 ```
 
-Validate SQL queries:
+Validate SQLc queries:
+
 ```bash
 make db-validate
 ```
 
+Seed database with initial data (users, roles, permissions):
+
+```bash
+make db-seed
+```
+
+Drop all tables and functions from the database (with confirmation):
+
+```bash
+make db-drop
+```
+
+**Note**: The database container must be running (`make db-up`) before running migrations, seeding, or dropping tables.
+
+### Login Credentials
+
+For development and testing, the following credentials are available (displayed on the landing page):
+
+- **Email**: `admin@vistra.com`
+- **Password**: `admin123`
+
+These correspond to seeded database users. Run `make db-seed` to populate the database with initial data.
+
 ### Build
 
 Build for production:
+
 ```bash
 make build
 ```
 
 Start production server:
+
 ```bash
 make start
 ```
@@ -84,6 +121,8 @@ make start
 ├── database/              # sqlc database schemas and queries
 │   ├── schema/           # SQL schema files
 │   ├── sql/              # SQL query files
+│   ├── seeds/            # Database seed scripts
+│   │   └── seed.sql      # Initial data seeding
 │   └── sqlc.yaml         # sqlc configuration
 ├── src/                   # Generated code from sqlc
 ├── public/                # Static assets
@@ -103,10 +142,13 @@ make start
 - `make lint` - Run linter
 - `make db-up` - Start PostgreSQL database
 - `make db-down` - Stop PostgreSQL database
+- `make db-migrate` - Run database migrations (runs all .sql files in database/schema in ascending order)
 - `make db-generate` - Generate TypeScript types from SQL
 - `make db-validate` - Validate SQL queries
+- `make db-seed` - Seed database with initial data
+- `make db-drop` - Drop all tables and functions from the database (with confirmation)
 - `make db-reset` - Reset database (stop and start)
-- `make clean` - Clean build artifacts
+- `make clean` - Clean build artifacts, node_modules, and drop all database tables (with confirmation)
 - `make setup` - Initial setup (install + start DB)
 
 ## Environment Variables
@@ -121,4 +163,3 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ## License
 
 Private project for Vistra takehome exam.
-

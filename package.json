@@ -23,6 +23,7 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "autoprefixer": "^10.0.1",
+    "bcrypt": "^6.0.0",
     "eslint": "^9.38.0",
     "eslint-config-next": "^16.0.1",
     "postcss": "^8",
