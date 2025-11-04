@@ -5,10 +5,14 @@ interface Client {
 }
 
 export const getRoleQuery = `-- name: GetRole :one
-
-
-SELECT id, name, description, created_at, updated_at FROM roles
-WHERE id = $1 LIMIT 1`;
+SELECT
+    id, name, description, created_at, updated_at
+FROM
+    roles
+WHERE
+    id = $1
+LIMIT
+    1`;
 
 export interface GetRoleArgs {
     id: string;
@@ -42,8 +46,14 @@ export async function getRole(client: Client, args: GetRoleArgs): Promise<GetRol
 }
 
 export const getRoleByNameQuery = `-- name: GetRoleByName :one
-SELECT id, name, description, created_at, updated_at FROM roles
-WHERE name = $1 LIMIT 1`;
+SELECT
+    id, name, description, created_at, updated_at
+FROM
+    roles
+WHERE
+    name = $1
+LIMIT
+    1`;
 
 export interface GetRoleByNameArgs {
     name: string;
@@ -77,8 +87,12 @@ export async function getRoleByName(client: Client, args: GetRoleByNameArgs): Pr
 }
 
 export const listRolesQuery = `-- name: ListRoles :many
-SELECT id, name, description, created_at, updated_at FROM roles
-ORDER BY created_at DESC`;
+SELECT
+    id, name, description, created_at, updated_at
+FROM
+    roles
+ORDER BY
+    created_at DESC`;
 
 export interface ListRolesRow {
     id: string;
@@ -106,12 +120,10 @@ export async function listRoles(client: Client): Promise<ListRolesRow[]> {
 }
 
 export const createRoleQuery = `-- name: CreateRole :one
-INSERT INTO roles (
-    name, description
-) VALUES (
-    $1, $2
-)
-RETURNING id, name, description, created_at, updated_at`;
+INSERT INTO
+    roles (name, description)
+VALUES
+    ($1, $2) RETURNING id, name, description, created_at, updated_at`;
 
 export interface CreateRoleArgs {
     name: string;
@@ -146,13 +158,14 @@ export async function createRole(client: Client, args: CreateRoleArgs): Promise<
 }
 
 export const updateRoleQuery = `-- name: UpdateRole :one
-UPDATE roles
+UPDATE
+    roles
 SET
     name = $2,
     description = $3,
     updated_at = NOW()
-WHERE id = $1
-RETURNING id, name, description, created_at, updated_at`;
+WHERE
+    id = $1 RETURNING id, name, description, created_at, updated_at`;
 
 export interface UpdateRoleArgs {
     id: string;
@@ -188,8 +201,10 @@ export async function updateRole(client: Client, args: UpdateRoleArgs): Promise<
 }
 
 export const deleteRoleQuery = `-- name: DeleteRole :exec
-DELETE FROM roles
-WHERE id = $1`;
+DELETE FROM
+    roles
+WHERE
+    id = $1`;
 
 export interface DeleteRoleArgs {
     id: string;
@@ -204,9 +219,14 @@ export async function deleteRole(client: Client, args: DeleteRoleArgs): Promise<
 }
 
 export const getPermissionQuery = `-- name: GetPermission :one
-
-SELECT id, name, resource, action, description, created_at, updated_at FROM permissions
-WHERE id = $1 LIMIT 1`;
+SELECT
+    id, name, resource, action, description, created_at, updated_at
+FROM
+    permissions
+WHERE
+    id = $1
+LIMIT
+    1`;
 
 export interface GetPermissionArgs {
     id: string;
@@ -244,8 +264,14 @@ export async function getPermission(client: Client, args: GetPermissionArgs): Pr
 }
 
 export const getPermissionByNameQuery = `-- name: GetPermissionByName :one
-SELECT id, name, resource, action, description, created_at, updated_at FROM permissions
-WHERE name = $1 LIMIT 1`;
+SELECT
+    id, name, resource, action, description, created_at, updated_at
+FROM
+    permissions
+WHERE
+    name = $1
+LIMIT
+    1`;
 
 export interface GetPermissionByNameArgs {
     name: string;
@@ -283,8 +309,13 @@ export async function getPermissionByName(client: Client, args: GetPermissionByN
 }
 
 export const listPermissionsQuery = `-- name: ListPermissions :many
-SELECT id, name, resource, action, description, created_at, updated_at FROM permissions
-ORDER BY resource, action`;
+SELECT
+    id, name, resource, action, description, created_at, updated_at
+FROM
+    permissions
+ORDER BY
+    resource,
+    action`;
 
 export interface ListPermissionsRow {
     id: string;
@@ -316,9 +347,14 @@ export async function listPermissions(client: Client): Promise<ListPermissionsRo
 }
 
 export const listPermissionsByResourceQuery = `-- name: ListPermissionsByResource :many
-SELECT id, name, resource, action, description, created_at, updated_at FROM permissions
-WHERE resource = $1
-ORDER BY action`;
+SELECT
+    id, name, resource, action, description, created_at, updated_at
+FROM
+    permissions
+WHERE
+    resource = $1
+ORDER BY
+    action`;
 
 export interface ListPermissionsByResourceArgs {
     resource: string;
@@ -354,12 +390,10 @@ export async function listPermissionsByResource(client: Client, args: ListPermis
 }
 
 export const createPermissionQuery = `-- name: CreatePermission :one
-INSERT INTO permissions (
-    name, resource, action, description
-) VALUES (
-    $1, $2, $3, $4
-)
-RETURNING id, name, resource, action, description, created_at, updated_at`;
+INSERT INTO
+    permissions (name, resource, action, description)
+VALUES
+    ($1, $2, $3, $4) RETURNING id, name, resource, action, description, created_at, updated_at`;
 
 export interface CreatePermissionArgs {
     name: string;
@@ -400,15 +434,16 @@ export async function createPermission(client: Client, args: CreatePermissionArg
 }
 
 export const updatePermissionQuery = `-- name: UpdatePermission :one
-UPDATE permissions
+UPDATE
+    permissions
 SET
     name = $2,
     resource = $3,
     action = $4,
     description = $5,
     updated_at = NOW()
-WHERE id = $1
-RETURNING id, name, resource, action, description, created_at, updated_at`;
+WHERE
+    id = $1 RETURNING id, name, resource, action, description, created_at, updated_at`;
 
 export interface UpdatePermissionArgs {
     id: string;
@@ -450,8 +485,10 @@ export async function updatePermission(client: Client, args: UpdatePermissionArg
 }
 
 export const deletePermissionQuery = `-- name: DeletePermission :exec
-DELETE FROM permissions
-WHERE id = $1`;
+DELETE FROM
+    permissions
+WHERE
+    id = $1`;
 
 export interface DeletePermissionArgs {
     id: string;
@@ -466,12 +503,16 @@ export async function deletePermission(client: Client, args: DeletePermissionArg
 }
 
 export const getRolePermissionsQuery = `-- name: GetRolePermissions :many
-
-SELECT p.id, p.name, p.resource, p.action, p.description, p.created_at, p.updated_at
-FROM permissions p
-JOIN role_permissions rp ON p.id = rp.permission_id
-WHERE rp.role_id = $1
-ORDER BY p.resource, p.action`;
+SELECT
+    p.id, p.name, p.resource, p.action, p.description, p.created_at, p.updated_at
+FROM
+    permissions p
+    JOIN role_permissions rp ON p.id = rp.permission_id
+WHERE
+    rp.role_id = $1
+ORDER BY
+    p.resource,
+    p.action`;
 
 export interface GetRolePermissionsArgs {
     roleId: string;
@@ -507,9 +548,10 @@ export async function getRolePermissions(client: Client, args: GetRolePermission
 }
 
 export const addPermissionToRoleQuery = `-- name: AddPermissionToRole :exec
-INSERT INTO role_permissions (role_id, permission_id)
-VALUES ($1, $2)
-ON CONFLICT (role_id, permission_id) DO NOTHING`;
+INSERT INTO
+    role_permissions (role_id, permission_id)
+VALUES
+    ($1, $2) ON CONFLICT (role_id, permission_id) DO NOTHING`;
 
 export interface AddPermissionToRoleArgs {
     roleId: string;
@@ -525,8 +567,11 @@ export async function addPermissionToRole(client: Client, args: AddPermissionToR
 }
 
 export const removePermissionFromRoleQuery = `-- name: RemovePermissionFromRole :exec
-DELETE FROM role_permissions
-WHERE role_id = $1 AND permission_id = $2`;
+DELETE FROM
+    role_permissions
+WHERE
+    role_id = $1
+    AND permission_id = $2`;
 
 export interface RemovePermissionFromRoleArgs {
     roleId: string;
@@ -542,8 +587,10 @@ export async function removePermissionFromRole(client: Client, args: RemovePermi
 }
 
 export const clearRolePermissionsQuery = `-- name: ClearRolePermissions :exec
-DELETE FROM role_permissions
-WHERE role_id = $1`;
+DELETE FROM
+    role_permissions
+WHERE
+    role_id = $1`;
 
 export interface ClearRolePermissionsArgs {
     roleId: string;
@@ -558,13 +605,16 @@ export async function clearRolePermissions(client: Client, args: ClearRolePermis
 }
 
 export const getUserRolesQuery = `-- name: GetUserRoles :many
-
-SELECT r.id, r.name, r.description, r.created_at, r.updated_at
-FROM roles r
-JOIN user_roles ur ON r.id = ur.role_id
-WHERE ur.user_id = $1
-  AND ur.deleted_at IS NULL
-ORDER BY ur.assigned_at DESC`;
+SELECT
+    r.id, r.name, r.description, r.created_at, r.updated_at
+FROM
+    roles r
+    JOIN user_roles ur ON r.id = ur.role_id
+WHERE
+    ur.user_id = $1
+    AND ur.deleted_at IS NULL
+ORDER BY
+    ur.assigned_at DESC`;
 
 export interface GetUserRolesArgs {
     userId: string;
@@ -596,10 +646,13 @@ export async function getUserRoles(client: Client, args: GetUserRolesArgs): Prom
 }
 
 export const assignRoleToUserQuery = `-- name: AssignRoleToUser :exec
-INSERT INTO user_roles (user_id, role_id, assigned_by)
-VALUES ($1, $2, $3)
-ON CONFLICT (user_id, role_id) DO UPDATE
-SET deleted_at = NULL,
+INSERT INTO
+    user_roles (user_id, role_id, assigned_by)
+VALUES
+    ($1, $2, $3) ON CONFLICT (user_id, role_id) DO
+UPDATE
+SET
+    deleted_at = NULL,
     assigned_at = NOW(),
     assigned_by = $3`;
 
@@ -618,9 +671,14 @@ export async function assignRoleToUser(client: Client, args: AssignRoleToUserArg
 }
 
 export const removeRoleFromUserQuery = `-- name: RemoveRoleFromUser :exec
-UPDATE user_roles
-SET deleted_at = NOW()
-WHERE user_id = $1 AND role_id = $2 AND deleted_at IS NULL`;
+UPDATE
+    user_roles
+SET
+    deleted_at = NOW()
+WHERE
+    user_id = $1
+    AND role_id = $2
+    AND deleted_at IS NULL`;
 
 export interface RemoveRoleFromUserArgs {
     userId: string;
@@ -636,9 +694,13 @@ export async function removeRoleFromUser(client: Client, args: RemoveRoleFromUse
 }
 
 export const clearUserRolesQuery = `-- name: ClearUserRoles :exec
-UPDATE user_roles
-SET deleted_at = NOW()
-WHERE user_id = $1 AND deleted_at IS NULL`;
+UPDATE
+    user_roles
+SET
+    deleted_at = NOW()
+WHERE
+    user_id = $1
+    AND deleted_at IS NULL`;
 
 export interface ClearUserRolesArgs {
     userId: string;
@@ -653,8 +715,8 @@ export async function clearUserRoles(client: Client, args: ClearUserRolesArgs): 
 }
 
 export const checkUserPermissionQuery = `-- name: CheckUserPermission :one
-
-SELECT user_has_permission($1, $2, $3) as has_permission`;
+SELECT
+    user_has_permission($1, $2, $3) as has_permission`;
 
 export interface CheckUserPermissionArgs {
     userIdParam: string;
@@ -682,13 +744,34 @@ export async function checkUserPermission(client: Client, args: CheckUserPermiss
 }
 
 export const getUserPermissionsQuery = `-- name: GetUserPermissions :many
-SELECT DISTINCT p.id, p.name, p.resource, p.action, p.description, p.created_at, p.updated_at
-FROM user_roles ur
-JOIN role_permissions rp ON ur.role_id = rp.role_id
-JOIN permissions p ON rp.permission_id = p.id
-WHERE ur.user_id = $1
-  AND ur.deleted_at IS NULL
-ORDER BY p.resource, p.action`;
+SELECT
+    DISTINCT p.id, p.name, p.resource, p.action, p.description, p.created_at, p.updated_at
+FROM
+    (
+        -- Direct permissions from user_permissions
+        SELECT
+            p.id, p.name, p.resource, p.action, p.description, p.created_at, p.updated_at
+        FROM
+            user_permissions up
+            JOIN permissions p ON up.permission_id = p.id
+        WHERE
+            up.user_id = $1
+            AND up.deleted_at IS NULL
+        UNION
+        -- Permissions from roles
+        SELECT
+            p.id, p.name, p.resource, p.action, p.description, p.created_at, p.updated_at
+        FROM
+            user_roles ur
+            JOIN role_permissions rp ON ur.role_id = rp.role_id
+            JOIN permissions p ON rp.permission_id = p.id
+        WHERE
+            ur.user_id = $1
+            AND ur.deleted_at IS NULL
+    ) p
+ORDER BY
+    p.resource,
+    p.action`;
 
 export interface GetUserPermissionsArgs {
     userId: string;
@@ -724,27 +807,60 @@ export async function getUserPermissions(client: Client, args: GetUserPermission
 }
 
 export const checkUserPermissionByNameQuery = `-- name: CheckUserPermissionByName :one
-SELECT EXISTS(
-    SELECT 1
-    FROM user_roles ur
-    JOIN role_permissions rp ON ur.role_id = rp.role_id
-    JOIN permissions p ON rp.permission_id = p.id
-    WHERE ur.user_id = $1
-      AND ur.deleted_at IS NULL
-      AND (
-          -- Exact match
-          p.name = $2
-          OR
-          -- Wildcard match: resource:* matches all actions on resource
-          (p.resource = split_part($2, ':', 1) AND p.action = '*')
-          OR
-          -- Wildcard match: *:action matches action on all resources
-          (p.resource = '*' AND p.action = split_part($2, ':', 2))
-          OR
-          -- Wildcard match: *:* matches everything
-          (p.resource = '*' AND p.action = '*')
-      )
-) as has_permission`;
+SELECT
+    EXISTS(
+        SELECT
+            1
+        FROM
+            (
+                -- Direct permissions from user_permissions
+                SELECT
+                    p.id,
+                    p.name,
+                    p.resource,
+                    p.action
+                FROM
+                    user_permissions up
+                    JOIN permissions p ON up.permission_id = p.id
+                WHERE
+                    up.user_id = $1
+                    AND up.deleted_at IS NULL
+                UNION
+                -- Permissions from roles
+                SELECT
+                    p.id,
+                    p.name,
+                    p.resource,
+                    p.action
+                FROM
+                    user_roles ur
+                    JOIN role_permissions rp ON ur.role_id = rp.role_id
+                    JOIN permissions p ON rp.permission_id = p.id
+                WHERE
+                    ur.user_id = $1
+                    AND ur.deleted_at IS NULL
+            ) p
+        WHERE
+            (
+                -- Exact match
+                p.name = $2
+                OR -- Wildcard match: resource:* matches all actions on resource
+                (
+                    p.resource = split_part($2, ':', 1)
+                    AND p.action = '*'
+                )
+                OR -- Wildcard match: *:action matches action on all resources
+                (
+                    p.resource = '*'
+                    AND p.action = split_part($2, ':', 2)
+                )
+                OR -- Wildcard match: *:* matches everything
+                (
+                    p.resource = '*'
+                    AND p.action = '*'
+                )
+            )
+    ) as has_permission`;
 
 export interface CheckUserPermissionByNameArgs {
     userId: string;
@@ -771,20 +887,41 @@ export async function checkUserPermissionByName(client: Client, args: CheckUserP
 }
 
 export const getEffectivePermissionsQuery = `-- name: GetEffectivePermissions :many
-SELECT DISTINCT
-    CASE
-        WHEN p.resource = '*' AND p.action = '*' THEN 'all permissions'
+SELECT
+    DISTINCT CASE
+        WHEN p.resource = '*'
+        AND p.action = '*' THEN 'all permissions'
         WHEN p.resource = '*' THEN 'all resources:' || p.action
         WHEN p.action = '*' THEN p.resource || ':all actions'
         ELSE p.name
     END as effective_permission,
     p.id, p.name, p.resource, p.action, p.description, p.created_at, p.updated_at
-FROM user_roles ur
-JOIN role_permissions rp ON ur.role_id = rp.role_id
-JOIN permissions p ON rp.permission_id = p.id
-WHERE ur.user_id = $1
-  AND ur.deleted_at IS NULL
-ORDER BY p.resource, p.action`;
+FROM
+    (
+        -- Direct permissions from user_permissions
+        SELECT
+            p.id, p.name, p.resource, p.action, p.description, p.created_at, p.updated_at
+        FROM
+            user_permissions up
+            JOIN permissions p ON up.permission_id = p.id
+        WHERE
+            up.user_id = $1
+            AND up.deleted_at IS NULL
+        UNION
+        -- Permissions from roles
+        SELECT
+            p.id, p.name, p.resource, p.action, p.description, p.created_at, p.updated_at
+        FROM
+            user_roles ur
+            JOIN role_permissions rp ON ur.role_id = rp.role_id
+            JOIN permissions p ON rp.permission_id = p.id
+        WHERE
+            ur.user_id = $1
+            AND ur.deleted_at IS NULL
+    ) p
+ORDER BY
+    p.resource,
+    p.action`;
 
 export interface GetEffectivePermissionsArgs {
     userId: string;
@@ -818,6 +955,121 @@ export async function getEffectivePermissions(client: Client, args: GetEffective
             createdAt: row[6],
             updatedAt: row[7]
         };
+    });
+}
+
+export const getUserDirectPermissionsQuery = `-- name: GetUserDirectPermissions :many
+SELECT
+    p.id, p.name, p.resource, p.action, p.description, p.created_at, p.updated_at
+FROM
+    permissions p
+    JOIN user_permissions up ON p.id = up.permission_id
+WHERE
+    up.user_id = $1
+    AND up.deleted_at IS NULL
+ORDER BY
+    p.resource,
+    p.action`;
+
+export interface GetUserDirectPermissionsArgs {
+    userId: string;
+}
+
+export interface GetUserDirectPermissionsRow {
+    id: string;
+    name: string;
+    resource: string;
+    action: string;
+    description: string | null;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+}
+
+export async function getUserDirectPermissions(client: Client, args: GetUserDirectPermissionsArgs): Promise<GetUserDirectPermissionsRow[]> {
+    const result = await client.query({
+        text: getUserDirectPermissionsQuery,
+        values: [args.userId],
+        rowMode: "array"
+    });
+    return result.rows.map(row => {
+        return {
+            id: row[0],
+            name: row[1],
+            resource: row[2],
+            action: row[3],
+            description: row[4],
+            createdAt: row[5],
+            updatedAt: row[6]
+        };
+    });
+}
+
+export const assignPermissionToUserQuery = `-- name: AssignPermissionToUser :exec
+INSERT INTO
+    user_permissions (user_id, permission_id, assigned_by)
+VALUES
+    ($1, $2, $3) ON CONFLICT (user_id, permission_id) DO
+UPDATE
+SET
+    deleted_at = NULL,
+    assigned_at = NOW(),
+    assigned_by = $3`;
+
+export interface AssignPermissionToUserArgs {
+    userId: string;
+    permissionId: string;
+    assignedBy: string | null;
+}
+
+export async function assignPermissionToUser(client: Client, args: AssignPermissionToUserArgs): Promise<void> {
+    await client.query({
+        text: assignPermissionToUserQuery,
+        values: [args.userId, args.permissionId, args.assignedBy],
+        rowMode: "array"
+    });
+}
+
+export const removePermissionFromUserQuery = `-- name: RemovePermissionFromUser :exec
+UPDATE
+    user_permissions
+SET
+    deleted_at = NOW()
+WHERE
+    user_id = $1
+    AND permission_id = $2
+    AND deleted_at IS NULL`;
+
+export interface RemovePermissionFromUserArgs {
+    userId: string;
+    permissionId: string;
+}
+
+export async function removePermissionFromUser(client: Client, args: RemovePermissionFromUserArgs): Promise<void> {
+    await client.query({
+        text: removePermissionFromUserQuery,
+        values: [args.userId, args.permissionId],
+        rowMode: "array"
+    });
+}
+
+export const clearUserDirectPermissionsQuery = `-- name: ClearUserDirectPermissions :exec
+UPDATE
+    user_permissions
+SET
+    deleted_at = NOW()
+WHERE
+    user_id = $1
+    AND deleted_at IS NULL`;
+
+export interface ClearUserDirectPermissionsArgs {
+    userId: string;
+}
+
+export async function clearUserDirectPermissions(client: Client, args: ClearUserDirectPermissionsArgs): Promise<void> {
+    await client.query({
+        text: clearUserDirectPermissionsQuery,
+        values: [args.userId],
+        rowMode: "array"
     });
 }
 
