@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { requirePermission, getCurrentUser } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { listUsers, createUser, getUserByEmail } from '@/app/generated-queries/users_sql';
+import * as userQueries from '@/lib/queries/users';
+import * as rbacQueries from '@/lib/queries/rbac';
 import { logActivity } from '@/lib/activities';
 
 // GET /api/users - List all users
@@ -10,20 +10,23 @@ export async function GET() {
     try {
         await requirePermission('users', 'read');
 
-        const users = await listUsers(db);
+        const usersList = await userQueries.listUsers();
 
         // For each user, get their roles and permissions
-        const rbac = await import('@/app/generated-queries/rbac_sql');
         const usersWithPermissions = await Promise.all(
-            users.map(async (user) => {
-                const roles = await rbac.getUserRoles(db, { userId: user.id });
-                const permissions = await rbac.getUserPermissions(db, { userId: user.id });
-                const directPermissions = await rbac.getUserDirectPermissions(db, { userId: user.id });
+            usersList.map(async (user) => {
+                // getUserRoles and getUserDirectPermissions are independent, so fetch them in parallel
+                const [roles, directPermissions] = await Promise.all([
+                    userQueries.getUserRoles(user.id),
+                    userQueries.getUserDirectPermissions(user.id),
+                ]);
+                // getUserPermissions will fetch roles and directPermissions internally
+                const permissions = await userQueries.getUserPermissions(user.id);
                 return {
                     ...user,
-                    roles,
+                    roles: roles.map(r => r.role).filter(Boolean),
                     permissions,
-                    directPermissions,
+                    directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
                 };
             })
         );
@@ -60,7 +63,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Check if user already exists
-        const existingUser = await getUserByEmail(db, { email });
+        const existingUser = await userQueries.getUserByEmail(email);
         if (existingUser) {
             return NextResponse.json(
                 { error: 'User with this email already exists' },
@@ -71,7 +74,11 @@ export async function POST(request: NextRequest) {
         // Hash the password before storing
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const newUser = await createUser(db, { email, name, password: hashedPassword });
+        const newUser = await userQueries.createUser({
+            email,
+            name,
+            password: hashedPassword,
+        });
 
         if (!newUser) {
             return NextResponse.json(
@@ -106,4 +113,3 @@ export async function POST(request: NextRequest) {
         );
     }
 }
-

@@ -1,7 +1,7 @@
+import { permissions } from '@/lib/api';
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission, isSystemAccount, getCurrentUser } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { getUser, updateUser, deleteUser } from '@/app/generated-queries/users_sql';
+import * as userQueries from '@/lib/queries/users';
 import { logActivity } from '@/lib/activities';
 
 // GET /api/users/[id] - Get a specific user
@@ -13,7 +13,7 @@ export async function GET(
         await requirePermission('users', 'read');
 
         const { id } = await params;
-        const user = await getUser(db, { id });
+        const user = await userQueries.getUser(id);
 
         if (!user) {
             return NextResponse.json(
@@ -22,17 +22,19 @@ export async function GET(
             );
         }
 
-        // Get user roles and permissions
-        const rbac = await import('@/app/generated-queries/rbac_sql');
-        const roles = await rbac.getUserRoles(db, { userId: user.id });
-        const permissions = await rbac.getUserPermissions(db, { userId: user.id });
-        const directPermissions = await rbac.getUserDirectPermissions(db, { userId: user.id });
+        // Get user roles, permissions, and direct permissions
+        // getUserRoles and getUserDirectPermissions are independent, so fetch them in parallel
+        const [roles, directPermissions, permissions] = await Promise.all([
+            userQueries.getUserRoles(user.id),
+            userQueries.getUserDirectPermissions(user.id),
+            userQueries.getUserPermissions(user.id),
+        ]);
 
         return NextResponse.json({
             ...user,
-            roles,
+            roles: roles.map(r => r.role).filter(Boolean),
             permissions,
-            directPermissions,
+            directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
         });
     } catch (error: any) {
         if (error.message === 'Unauthorized') {
@@ -69,7 +71,7 @@ export async function PUT(
         }
 
         // Check if user exists
-        const existingUser = await getUser(db, { id });
+        const existingUser = await userQueries.getUser(id);
         if (!existingUser) {
             return NextResponse.json(
                 { error: 'User not found' },
@@ -78,14 +80,14 @@ export async function PUT(
         }
 
         // Prevent modification of system accounts
-        if (await isSystemAccount(id)) {
+        if (existingUser.isSystemAccount) {
             return NextResponse.json(
                 { error: 'Cannot modify system accounts' },
                 { status: 403 }
             );
         }
 
-        const updatedUser = await updateUser(db, { id, email, name });
+        const updatedUser = await userQueries.updateUser(id, { email, name });
 
         if (!updatedUser) {
             return NextResponse.json(
@@ -137,7 +139,7 @@ export async function DELETE(
         const { id } = await params;
 
         // Check if user exists
-        const existingUser = await getUser(db, { id });
+        const existingUser = await userQueries.getUser(id);
         if (!existingUser) {
             return NextResponse.json(
                 { error: 'User not found' },
@@ -146,14 +148,14 @@ export async function DELETE(
         }
 
         // Prevent deletion of system accounts
-        if (await isSystemAccount(id)) {
+        if (existingUser.isSystemAccount) {
             return NextResponse.json(
                 { error: 'Cannot delete system accounts' },
                 { status: 403 }
             );
         }
 
-        await deleteUser(db, { id });
+        await userQueries.deleteUser(id);
 
         // Log user deletion activity
         const currentUser = await getCurrentUser();
@@ -184,4 +186,3 @@ export async function DELETE(
         );
     }
 }
-

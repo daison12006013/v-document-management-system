@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission, requireAnyPermission, getCurrentUser, isSystemAccount } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { getUser } from '@/app/generated-queries/users_sql';
-import * as rbac from '@/app/generated-queries/rbac_sql';
+import * as userQueries from '@/lib/queries/users';
+import * as rbacQueries from '@/lib/queries/rbac';
 import { logActivity } from '@/lib/activities';
 
 // POST /api/users/[id]/permissions - Assign permission to user
@@ -32,7 +31,7 @@ export async function POST(
         }
 
         // Check if user exists
-        const user = await getUser(db, { id });
+        const user = await userQueries.getUser(id);
         if (!user) {
             return NextResponse.json(
                 { error: 'User not found' },
@@ -41,7 +40,7 @@ export async function POST(
         }
 
         // Prevent modification of system accounts
-        if (await isSystemAccount(id)) {
+        if (user.isSystemAccount) {
             return NextResponse.json(
                 { error: 'Cannot modify permissions for system accounts' },
                 { status: 403 }
@@ -49,7 +48,7 @@ export async function POST(
         }
 
         // Check if permission exists
-        const permission = await rbac.getPermission(db, { id: permissionId });
+        const permission = await rbacQueries.getPermission(permissionId);
         if (!permission) {
             return NextResponse.json(
                 { error: 'Permission not found' },
@@ -58,16 +57,15 @@ export async function POST(
         }
 
         // Assign permission to user
-        await rbac.assignPermissionToUser(db, {
-            userId: id,
-            permissionId,
-            assignedBy: currentUser.id,
-        });
+        await rbacQueries.assignPermissionToUser(id, permissionId, currentUser.id);
 
         // Fetch updated user roles and permissions
-        const roles = await rbac.getUserRoles(db, { userId: id });
-        const permissions = await rbac.getUserPermissions(db, { userId: id });
-        const directPermissions = await rbac.getUserDirectPermissions(db, { userId: id });
+        // getUserRoles and getUserDirectPermissions are independent, so fetch them in parallel
+        const [roles, directPermissions, permissions] = await Promise.all([
+            userQueries.getUserRoles(id),
+            userQueries.getUserDirectPermissions(id),
+            userQueries.getUserPermissions(id),
+        ]);
 
         // Log permission assignment activity
         await logActivity({
@@ -87,9 +85,9 @@ export async function POST(
 
         return NextResponse.json({
             success: true,
-            roles,
+            roles: roles.map(r => r.role).filter(Boolean),
             permissions,
-            directPermissions,
+            directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
         });
     } catch (error: any) {
         if (error.message === 'Unauthorized') {
@@ -128,7 +126,7 @@ export async function DELETE(
         }
 
         // Check if user exists
-        const user = await getUser(db, { id });
+        const user = await userQueries.getUser(id);
         if (!user) {
             return NextResponse.json(
                 { error: 'User not found' },
@@ -137,26 +135,27 @@ export async function DELETE(
         }
 
         // Prevent modification of system accounts
-        if (await isSystemAccount(id)) {
+        if (user.isSystemAccount) {
             return NextResponse.json(
                 { error: 'Cannot modify permissions for system accounts' },
                 { status: 403 }
             );
         }
 
-        // Remove permission from user
-        await rbac.removePermissionFromUser(db, {
-            userId: id,
-            permissionId,
-        });
+        // Fetch the permission details for logging (before removal)
+        const removedPermission = await rbacQueries.getPermission(permissionId);
 
-        // Fetch the permission details for logging
-        const removedPermission = await rbac.getPermission(db, { id: permissionId });
+        // Remove permission from user
+        await rbacQueries.removePermissionFromUser(id, permissionId);
 
         // Fetch updated user roles and permissions
-        const roles = await rbac.getUserRoles(db, { userId: id });
-        const permissions = await rbac.getUserPermissions(db, { userId: id });
-        const directPermissions = await rbac.getUserDirectPermissions(db, { userId: id });
+        // getUserRoles and getUserDirectPermissions are independent, so fetch them in parallel
+        const [roles, directPermissions] = await Promise.all([
+            userQueries.getUserRoles(id),
+            userQueries.getUserDirectPermissions(id),
+        ]);
+        // getUserPermissions will fetch roles and directPermissions internally
+        const permissions = await userQueries.getUserPermissions(id);
 
         // Log permission removal activity
         const currentUser = await getCurrentUser();
@@ -177,9 +176,9 @@ export async function DELETE(
 
         return NextResponse.json({
             success: true,
-            roles,
+            roles: roles.map(r => r.role).filter(Boolean),
             permissions,
-            directPermissions,
+            directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
         });
     } catch (error: any) {
         if (error.message === 'Unauthorized') {
@@ -195,4 +194,3 @@ export async function DELETE(
         );
     }
 }
-

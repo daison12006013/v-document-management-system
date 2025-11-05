@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import * as rbac from "@/app/generated-queries/rbac_sql"
+import * as rbac from "@/lib/queries/rbac"
 import { requirePermission, requireAnyPermission, getCurrentUser } from "@/lib/auth"
 import { logActivity } from "@/lib/activities"
 
@@ -12,15 +11,15 @@ export async function GET() {
     // Allow users with either roles:read OR users:write to list roles
     await requireAnyPermission(['roles:read', 'roles:*', 'users:write', 'users:*', '*:*'])
 
-    const roles = await rbac.listRoles(db)
+    const roles = await rbac.listRoles()
 
     // For each role, get its permissions
     const rolesWithPermissions = await Promise.all(
       roles.map(async (role) => {
-        const permissions = await rbac.getRolePermissions(db, { roleId: role.id })
+        const rolePermissions = await rbac.getRolePermissions(role.id)
         return {
           ...role,
-          permissions,
+          permissions: rolePermissions.map(rp => rp.permission),
         }
       })
     )
@@ -57,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if role already exists
-    const existingRole = await rbac.getRoleByName(db, { name })
+    const existingRole = await rbac.getRoleByName(name)
     if (existingRole) {
       return NextResponse.json(
         { error: "Role with this name already exists" },
@@ -66,9 +65,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the role
-    const role = await rbac.createRole(db, {
+    const role = await rbac.createRole({
       name,
-      description: description || null,
+      description: description || undefined,
     })
 
     if (!role) {
@@ -87,21 +86,15 @@ export async function POST(request: NextRequest) {
         await Promise.all(
           permissions.map(async (permissionName: string) => {
             // Validate and get/create permission
-            const permission = await validateAndGetOrCreatePermission(
-              db,
-              permissionName
-            )
+            const permission = await validateAndGetOrCreatePermission(permissionName)
             if (permission) {
-              await rbac.addPermissionToRole(db, {
-                roleId: role.id,
-                permissionId: permission.id,
-              })
+              await rbac.addPermissionToRole(role.id, permission.id)
             }
           })
         )
       } catch (permError: any) {
         // If permission validation fails, rollback role creation and return error
-        await rbac.deleteRole(db, { id: role.id })
+        await rbac.deleteRole(role.id)
         if (permError.message?.includes("Invalid permission format")) {
           return NextResponse.json({ error: permError.message }, { status: 400 })
         }
@@ -110,9 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch the role with its permissions
-    const rolePermissions = await rbac.getRolePermissions(db, {
-      roleId: role.id,
-    })
+    const rolePermissions = await rbac.getRolePermissions(role.id)
 
     // Log role creation activity
     const currentUser = await getCurrentUser();
@@ -132,7 +123,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ...role,
-      permissions: rolePermissions,
+      permissions: rolePermissions.map(rp => rp.permission),
     })
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
@@ -153,10 +144,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper function to validate and get or create a permission
-async function validateAndGetOrCreatePermission(
-  client: any,
-  permissionName: string
-) {
+async function validateAndGetOrCreatePermission(permissionName: string) {
   // Validate permission format: should be "resource:action" or "resource:*"
   const permissionPattern = /^[a-zA-Z0-9_*]+:[a-zA-Z0-9_*]+$/
   if (!permissionPattern.test(permissionName)) {
@@ -168,17 +156,15 @@ async function validateAndGetOrCreatePermission(
   const [resource, action] = permissionName.split(":")
 
   // Try to get existing permission
-  let permission = await rbac.getPermissionByName(client, {
-    name: permissionName,
-  })
+  let permission = await rbac.getPermissionByName(permissionName)
 
   // If doesn't exist, create it
   if (!permission) {
-    permission = await rbac.createPermission(client, {
+    permission = await rbac.createPermission({
       name: permissionName,
       resource,
       action,
-      description: null,
+      description: undefined,
     })
   }
 

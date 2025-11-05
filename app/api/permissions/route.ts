@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import * as rbac from "@/app/generated-queries/rbac_sql"
+import * as rbac from "@/lib/queries/rbac"
 import { requireAnyPermission } from "@/lib/auth"
 
 // GET /api/permissions - List all permissions
@@ -11,7 +10,7 @@ export async function GET() {
     // Allow users with either permissions:read OR users:write to list permissions
     await requireAnyPermission(['permissions:read', 'permissions:*', 'users:write', 'users:*', '*:*'])
 
-    const permissions = await rbac.listPermissions(db)
+    const permissions = await rbac.listPermissions()
 
     return NextResponse.json(permissions)
   } catch (error: any) {

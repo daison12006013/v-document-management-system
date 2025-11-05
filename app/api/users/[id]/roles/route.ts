@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission, requireAnyPermission, getCurrentUser, isSystemAccount } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { getUser } from '@/app/generated-queries/users_sql';
-import * as rbac from '@/app/generated-queries/rbac_sql';
+import * as userQueries from '@/lib/queries/users';
+import * as rbacQueries from '@/lib/queries/rbac';
 import { logActivity } from '@/lib/activities';
 
 // POST /api/users/[id]/roles - Assign role to user
@@ -32,7 +31,7 @@ export async function POST(
         }
 
         // Check if user exists
-        const user = await getUser(db, { id });
+        const user = await userQueries.getUser(id);
         if (!user) {
             return NextResponse.json(
                 { error: 'User not found' },
@@ -41,7 +40,7 @@ export async function POST(
         }
 
         // Prevent modification of system accounts
-        if (await isSystemAccount(id)) {
+        if (user.isSystemAccount) {
             return NextResponse.json(
                 { error: 'Cannot modify roles for system accounts' },
                 { status: 403 }
@@ -49,7 +48,7 @@ export async function POST(
         }
 
         // Check if role exists
-        const role = await rbac.getRole(db, { id: roleId });
+        const role = await rbacQueries.getRole(roleId);
         if (!role) {
             return NextResponse.json(
                 { error: 'Role not found' },
@@ -58,16 +57,15 @@ export async function POST(
         }
 
         // Assign role to user
-        await rbac.assignRoleToUser(db, {
-            userId: id,
-            roleId,
-            assignedBy: currentUser.id,
-        });
+        await rbacQueries.assignRoleToUser(id, roleId, currentUser.id);
 
         // Fetch updated user roles and permissions
-        const roles = await rbac.getUserRoles(db, { userId: id });
-        const permissions = await rbac.getUserPermissions(db, { userId: id });
-        const directPermissions = await rbac.getUserDirectPermissions(db, { userId: id });
+        // getUserRoles and getUserDirectPermissions are independent, so fetch them in parallel
+        const [roles, directPermissions, permissions] = await Promise.all([
+            userQueries.getUserRoles(id),
+            userQueries.getUserDirectPermissions(id),
+            userQueries.getUserPermissions(id),
+        ]);
 
         // Log role assignment activity
         await logActivity({
@@ -87,9 +85,9 @@ export async function POST(
 
         return NextResponse.json({
             success: true,
-            roles,
+            roles: roles.map(r => r.role).filter(Boolean),
             permissions,
-            directPermissions,
+            directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
         });
     } catch (error: any) {
         if (error.message === 'Unauthorized') {
@@ -128,7 +126,7 @@ export async function DELETE(
         }
 
         // Check if user exists
-        const user = await getUser(db, { id });
+        const user = await userQueries.getUser(id);
         if (!user) {
             return NextResponse.json(
                 { error: 'User not found' },
@@ -137,26 +135,27 @@ export async function DELETE(
         }
 
         // Prevent modification of system accounts
-        if (await isSystemAccount(id)) {
+        if (user.isSystemAccount) {
             return NextResponse.json(
                 { error: 'Cannot modify roles for system accounts' },
                 { status: 403 }
             );
         }
 
-        // Remove role from user
-        await rbac.removeRoleFromUser(db, {
-            userId: id,
-            roleId,
-        });
+        // Fetch the role details for logging (before removal)
+        const removedRole = await rbacQueries.getRole(roleId);
 
-        // Fetch the role details for logging
-        const removedRole = await rbac.getRole(db, { id: roleId });
+        // Remove role from user
+        await rbacQueries.removeRoleFromUser(id, roleId);
 
         // Fetch updated user roles and permissions
-        const roles = await rbac.getUserRoles(db, { userId: id });
-        const permissions = await rbac.getUserPermissions(db, { userId: id });
-        const directPermissions = await rbac.getUserDirectPermissions(db, { userId: id });
+        // getUserRoles and getUserDirectPermissions are independent, so fetch them in parallel
+        const [roles, directPermissions] = await Promise.all([
+            userQueries.getUserRoles(id),
+            userQueries.getUserDirectPermissions(id),
+        ]);
+        // getUserPermissions will fetch roles and directPermissions internally
+        const permissions = await userQueries.getUserPermissions(id);
 
         // Log role removal activity
         const currentUser = await getCurrentUser();
@@ -177,9 +176,9 @@ export async function DELETE(
 
         return NextResponse.json({
             success: true,
-            roles,
+            roles: roles.map(r => r.role).filter(Boolean),
             permissions,
-            directPermissions,
+            directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
         });
     } catch (error: any) {
         if (error.message === 'Unauthorized') {
@@ -195,4 +194,3 @@ export async function DELETE(
         );
     }
 }
-

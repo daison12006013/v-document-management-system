@@ -1,15 +1,15 @@
 # Vistra Takehome Exam - Next.js
 
-A Next.js application built with TypeScript, Tailwind CSS, PostgreSQL, and sqlc.
+A Next.js application built with TypeScript, Tailwind CSS, MySQL, and Drizzle ORM.
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
+- **Framework**: Next.js 16 (App Router)
 - **UI Components**: shadcn/ui
 - **Styling**: Tailwind CSS
 - **Package Manager**: pnpm
-- **Database**: PostgreSQL
-- **Database Code Generation**: sqlc with TypeScript plugin
+- **Database**: MySQL 8.0
+- **ORM**: Drizzle ORM with MySQL2
 - **Local Development**: Docker
 - **Deployment**: AWS Serverless (Lambda, API Gateway)
 
@@ -20,7 +20,6 @@ A Next.js application built with TypeScript, Tailwind CSS, PostgreSQL, and sqlc.
 - Node.js 20+
 - pnpm (package manager)
 - Docker and Docker Compose
-- sqlc (for database code generation)
 
 ### Installation
 
@@ -31,16 +30,28 @@ make install
 # or directly: pnpm install
 ```
 
-2. Start PostgreSQL database:
+2. Start MySQL database:
 
 ```bash
-make db-up
+make db-start
 ```
 
-3. Run initial setup (install + start DB):
+3. Push database schema:
 
 ```bash
-make setup
+make db-push
+```
+
+4. Seed database with initial data:
+
+```bash
+make db-seed
+```
+
+Or run the complete setup:
+
+```bash
+make setup  # install + start DB + push schema + seed
 ```
 
 ### Development
@@ -53,39 +64,50 @@ make dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+**Note**: The database connection is automatically tested when Next.js starts. If MySQL isn't running (`make db-start`), you'll see a warning but the app will still start (connection will be retried on first use).
+
 ### Database
 
-Run database migrations (runs all .sql files in database/schema in ascending order):
+#### Quick Commands
 
 ```bash
-make db-migrate
+make db-start       # Start MySQL database
+make db-stop        # Stop MySQL database
+make db-status      # Check database status
+make db-push        # Push schema changes (auto-confirms)
+make db-generate    # Generate migration files
+make db-migrate     # Run migrations
+make db-seed        # Seed database with initial data
+make db-clean       # Drop all tables (with confirmation)
+make db-wipe        # Drop all tables and reseed (full reset)
+make db-reset       # Restart database container
+make db-studio      # Open Drizzle Studio (visual database browser)
 ```
 
-Generate TypeScript types from SQLc queries:
+#### Schema Management
+
+**Development (auto-sync):**
+```bash
+# Make changes to database/schema/*.ts files
+make db-push  # Automatically syncs schema changes (auto-confirms)
+```
+
+**Production (migrations):**
+```bash
+make db-generate  # Generate migration files
+make db-migrate   # Run migrations
+```
+
+#### Drizzle Studio
+
+Browse and edit your database visually:
 
 ```bash
-make db-generate
+make db-studio
+# Opens at http://localhost:4983
 ```
 
-Validate SQLc queries:
-
-```bash
-make db-validate
-```
-
-Seed database with initial data (users, roles, permissions):
-
-```bash
-make db-seed
-```
-
-Drop all tables and functions from the database (with confirmation):
-
-```bash
-make db-drop
-```
-
-**Note**: The database container must be running (`make db-up`) before running migrations, seeding, or dropping tables.
+**Note**: The database container must be running (`make db-start`) before pushing schema, running migrations, or seeding.
 
 ### Login Credentials
 
@@ -115,50 +137,110 @@ make start
 ```
 /
 ├── app/                    # Next.js App Router pages and routes
+│   ├── api/               # API routes
 ├── components/             # React components (including shadcn/ui)
 │   └── ui/                # shadcn/ui components
 ├── lib/                   # Utility functions and helpers
-├── database/              # sqlc database schemas and queries
-│   ├── schema/           # SQL schema files
-│   ├── sql/              # SQL query files
-│   ├── seeds/            # Database seed scripts
-│   │   └── seed.sql      # Initial data seeding
-│   └── sqlc.yaml         # sqlc configuration
-├── src/                   # Generated code from sqlc
+│   ├── queries/           # Drizzle query functions
+│   │   ├── users.ts       # User queries
+│   │   ├── rbac.ts        # RBAC queries
+│   │   ├── activities.ts  # Activity logging queries
+│   │   └── dashboard.ts   # Dashboard queries
+│   ├── db.ts              # Database connection setup
+│   ├── db-init.ts         # Connection utilities
+│   └── auth.ts            # Authentication helpers
+├── database/              # Database schemas and migrations
+│   ├── schema/            # Drizzle schema definitions
+│   │   ├── users.ts       # Users table schema
+│   │   ├── rbac.ts        # RBAC tables schema
+│   │   ├── activities.ts  # Activities table schema
+│   │   ├── relations.ts   # Table relations
+│   │   └── index.ts       # Schema exports
+│   ├── migrations/        # Generated migration files
+│   └── seeds/             # Database seed scripts
+│       └── seed.sql       # Initial data seeding
+├── scripts/               # Development scripts
+│   └── dev-with-db.ts     # Auto-setup dev script
+├── instrumentation.ts     # Next.js instrumentation (auto-connects DB)
 ├── public/                # Static assets
 ├── Dockerfile             # Docker configuration for local development
-├── docker-compose.yml     # Docker Compose configuration
-├── Makefile              # Build and development commands
-└── package.json          # Node.js dependencies
+├── docker-compose.yml     # Docker Compose configuration (MySQL)
+├── Makefile               # Build and development commands
+└── package.json           # Node.js dependencies
 ```
 
 ## Available Make Commands
 
+### Development
 - `make help` - Show help message
 - `make install` - Install dependencies
 - `make dev` - Start development server
 - `make build` - Build for production
 - `make start` - Start production server
 - `make lint` - Run linter
-- `make db-up` - Start PostgreSQL database
-- `make db-down` - Stop PostgreSQL database
-- `make db-migrate` - Run database migrations (runs all .sql files in database/schema in ascending order)
-- `make db-generate` - Generate TypeScript types from SQL
-- `make db-validate` - Validate SQL queries
+
+### Database
+- `make db-start` - Start MySQL database container
+- `make db-stop` - Stop MySQL database container
+- `make db-status` - Check database status
+- `make db-push` - Push schema changes (auto-confirms)
+- `make db-generate` - Generate migration files
+- `make db-migrate` - Run database migrations
 - `make db-seed` - Seed database with initial data
-- `make db-drop` - Drop all tables and functions from the database (with confirmation)
-- `make db-reset` - Reset database (stop and start)
-- `make clean` - Clean build artifacts, node_modules, and drop all database tables (with confirmation)
-- `make setup` - Initial setup (install + start DB)
+- `make db-clean` - Drop all tables (with confirmation)
+- `make db-wipe` - Drop all tables and reseed (full reset)
+- `make db-reset` - Restart database container
+- `make db-studio` - Open Drizzle Studio (visual browser)
+
+### Cleanup & Setup
+- `make clean` - Remove build artifacts and node_modules (with confirmation)
+- `make setup` - Complete setup (install + start DB + push schema + seed)
+
+Run `make help` to see all commands with descriptions.
 
 ## Environment Variables
 
 Create a `.env.local` file in the root directory:
 
 ```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/vistra_db?sslmode=disable
+DATABASE_URL=mysql://vistra_user:vistra_password@localhost:3306/vistra_db
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
+
+**MySQL Connection String Format:**
+```
+mysql://[username]:[password]@[host]:[port]/[database]
+```
+
+## Database Connection
+
+The application automatically connects to MySQL when Next.js starts:
+
+1. **Auto-Connect on Startup**: `instrumentation.ts` tests the connection
+2. **Health Check**: Available at `/api/health/db`
+3. **Lazy Initialization**: Connection created on first use if not available at startup
+
+Check connection status:
+```bash
+curl http://localhost:3000/api/health/db
+```
+
+## Features
+
+- **Role-Based Access Control (RBAC)**: Supports wildcard permissions (`users:*`, `*:read`, etc.)
+- **User Management**: Create, read, update, delete users with permission checks
+- **Role & Permission Management**: Assign roles and permissions to users
+- **Activity Logging**: Track all user actions
+- **Session Management**: Secure cookie-based sessions
+- **System Accounts**: Protected accounts that cannot be modified
+
+## Development Workflow
+
+1. **Make Schema Changes**: Edit files in `database/schema/*.ts`
+2. **Sync Schema**: Run `pnpm db:push` (development) or generate migrations (production)
+3. **Update Queries**: Update query functions in `lib/queries/*.ts` if needed
+4. **Test**: Start dev server with `make dev` or `pnpm dev:with-db`
+
 
 ## License
 

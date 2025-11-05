@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import * as rbac from "@/app/generated-queries/rbac_sql"
+import * as rbac from "@/lib/queries/rbac"
 import { requirePermission, requireAnyPermission, getCurrentUser } from "@/lib/auth"
 import { logActivity } from "@/lib/activities"
 
 // Helper function to validate and get or create a permission
-async function validateAndGetOrCreatePermission(
-  client: any,
-  permissionName: string
-) {
+async function validateAndGetOrCreatePermission(permissionName: string) {
   // Validate permission format: should be "resource:action" or "resource:*"
   const permissionPattern = /^[a-zA-Z0-9_*]+:[a-zA-Z0-9_*]+$/
   if (!permissionPattern.test(permissionName)) {
@@ -20,17 +16,15 @@ async function validateAndGetOrCreatePermission(
   const [resource, action] = permissionName.split(":")
 
   // Try to get existing permission
-  let permission = await rbac.getPermissionByName(client, {
-    name: permissionName,
-  })
+  let permission = await rbac.getPermissionByName(permissionName)
 
   // If doesn't exist, create it
   if (!permission) {
-    permission = await rbac.createPermission(client, {
+    permission = await rbac.createPermission({
       name: permissionName,
       resource,
       action,
-      description: null,
+      description: undefined,
     })
   }
 
@@ -46,19 +40,17 @@ export async function GET(
     await requirePermission('roles', 'read')
 
     const { id } = await params;
-    const role = await rbac.getRole(db, { id })
+    const role = await rbac.getRole(id)
 
     if (!role) {
       return NextResponse.json({ error: "Role not found" }, { status: 404 })
     }
 
-    const permissions = await rbac.getRolePermissions(db, {
-      roleId: role.id,
-    })
+    const rolePermissions = await rbac.getRolePermissions(role.id)
 
     return NextResponse.json({
       ...role,
-      permissions,
+      permissions: rolePermissions.map(rp => rp.permission),
     })
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
@@ -88,14 +80,14 @@ export async function PUT(
     const { name, description, permissions } = body
 
     // Check if role exists
-    const existingRole = await rbac.getRole(db, { id })
+    const existingRole = await rbac.getRole(id)
     if (!existingRole) {
       return NextResponse.json({ error: "Role not found" }, { status: 404 })
     }
 
     // Check if name is being changed and if new name already exists
     if (name && name !== existingRole.name) {
-      const roleWithName = await rbac.getRoleByName(db, { name })
+      const roleWithName = await rbac.getRoleByName(name)
       if (roleWithName && roleWithName.id !== id) {
         return NextResponse.json(
           { error: "Role with this name already exists" },
@@ -105,8 +97,7 @@ export async function PUT(
     }
 
     // Update the role
-    const updatedRole = await rbac.updateRole(db, {
-      id,
+    const updatedRole = await rbac.updateRole(id, {
       name: name || existingRole.name,
       description: description !== undefined ? description : existingRole.description,
     })
@@ -124,22 +115,16 @@ export async function PUT(
       await requireAnyPermission(['permissions:*', 'permissions:write']);
 
       // Clear existing permissions
-      await rbac.clearRolePermissions(db, { roleId: id })
+      await rbac.clearRolePermissions(id)
 
       // Add new permissions
       if (permissions.length > 0) {
         try {
           await Promise.all(
             permissions.map(async (permissionName: string) => {
-              const permission = await validateAndGetOrCreatePermission(
-                db,
-                permissionName
-              )
+              const permission = await validateAndGetOrCreatePermission(permissionName)
               if (permission) {
-                await rbac.addPermissionToRole(db, {
-                  roleId: id,
-                  permissionId: permission.id,
-                })
+                await rbac.addPermissionToRole(id, permission.id)
               }
             })
           )
@@ -156,9 +141,7 @@ export async function PUT(
     }
 
     // Fetch the role with its permissions
-    const rolePermissions = await rbac.getRolePermissions(db, {
-      roleId: id,
-    })
+    const rolePermissions = await rbac.getRolePermissions(id)
 
     // Log role update activity
     const currentUser = await getCurrentUser();
@@ -180,7 +163,7 @@ export async function PUT(
 
     return NextResponse.json({
       ...updatedRole,
-      permissions: rolePermissions,
+      permissions: rolePermissions.map(rp => rp.permission),
     })
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
@@ -210,12 +193,12 @@ export async function DELETE(
 
     const { id } = await params;
     // Check if role exists
-    const role = await rbac.getRole(db, { id })
+    const role = await rbac.getRole(id)
     if (!role) {
       return NextResponse.json({ error: "Role not found" }, { status: 404 })
     }
 
-    await rbac.deleteRole(db, { id })
+    await rbac.deleteRole(id)
 
     // Log role deletion activity
     const currentUser = await getCurrentUser();

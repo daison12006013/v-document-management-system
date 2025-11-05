@@ -1,8 +1,7 @@
-import { db } from '@/lib/db';
-import { createActivity } from '@/app/generated-queries/dashboard_sql';
+import * as activityQueries from '@/lib/queries/activities';
 import { getCurrentUser } from '@/lib/auth';
 
-export interface ActivityLogParams {
+interface ActivityLogParams {
   action: string;
   resourceType: string;
   resourceId?: string | null;
@@ -34,7 +33,7 @@ export async function logActivity(params: ActivityLogParams): Promise<void> {
     }
 
     // Log the activity (non-blocking)
-    await createActivity(db, {
+    await activityQueries.createActivity({
       userId,
       action: params.action,
       resourceType: params.resourceType,
@@ -48,4 +47,3 @@ export async function logActivity(params: ActivityLogParams): Promise<void> {
     console.error('Failed to log activity:', error);
   }
 }
-

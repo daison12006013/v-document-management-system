@@ -1,20 +1,22 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: vistra_postgres
+  mysql:
+    image: mysql:8.0
+    container_name: vistra_mysql
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: vistra_db
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: vistra_db
+      MYSQL_USER: vistra_user
+      MYSQL_PASSWORD: vistra_password
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "vistra_user", "-pvistra_password"]
       interval: 10s
       timeout: 5s
       retries: 5
+    command: --default-authentication-plugin=mysql_native_password
 
 volumes:
-  postgres_data:
+  mysql_data:

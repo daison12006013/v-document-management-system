@@ -1,12 +1,7 @@
 import { cookies } from 'next/headers';
-import { db } from '@/lib/db';
-import { getUser } from '@/app/generated-queries/users_sql';
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-}
+import * as userQueries from '@/lib/queries/users';
+import * as rbacQueries from '@/lib/queries/rbac';
+import type { User } from '@/lib/types';
 
 export async function getCurrentUser(): Promise<User | null> {
   try {
@@ -32,7 +27,7 @@ export async function getCurrentUser(): Promise<User | null> {
     }
 
     // Verify user still exists in database (security check)
-    const user = await getUser(db, { id: sessionData.id });
+    const user = await userQueries.getUser(sessionData.id);
 
     if (!user) {
       return null;
@@ -50,7 +45,7 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 }
 
-export async function requireAuth(): Promise<User> {
+async function requireAuth(): Promise<User> {
   const user = await getCurrentUser();
 
   if (!user) {
@@ -62,15 +57,10 @@ export async function requireAuth(): Promise<User> {
 
 export async function requirePermission(resource: string, action: string): Promise<User> {
   const user = await requireAuth();
-  const { db } = await import('@/lib/db');
-  const { checkUserPermissionByName } = await import('@/app/generated-queries/rbac_sql');
 
-  const permissionCheck = await checkUserPermissionByName(db, {
-    userId: user.id,
-    name: `${resource}:${action}`,
-  });
+  const hasPermission = await rbacQueries.checkUserPermission(user.id, resource, action);
 
-  if (!permissionCheck?.hasPermission) {
+  if (!hasPermission) {
     throw new Error('Forbidden');
   }
 
@@ -86,19 +76,21 @@ export async function requirePermission(resource: string, action: string): Promi
  */
 export async function requireAnyPermission(permissionNames: string[]): Promise<User> {
   const user = await requireAuth();
-  const { db } = await import('@/lib/db');
-  const { checkUserPermissionByName } = await import('@/app/generated-queries/rbac_sql');
 
-  // Check each permission until we find one the user has
-  for (const permissionName of permissionNames) {
-    const permissionCheck = await checkUserPermissionByName(db, {
-      userId: user.id,
-      name: permissionName,
-    });
-
-    if (permissionCheck?.hasPermission) {
-      return user;
+  // Check all permissions in parallel (they're independent)
+  const permissionChecks = permissionNames.map(permissionName => {
+    const [resource, action] = permissionName.split(':');
+    if (resource && action) {
+      return rbacQueries.checkUserPermission(user.id, resource, action);
     }
+    return Promise.resolve(false);
+  });
+
+  const results = await Promise.all(permissionChecks);
+
+  // Check if user has at least one permission
+  if (results.some(hasPermission => hasPermission)) {
+    return user;
   }
 
   // User doesn't have any of the required permissions
@@ -112,11 +104,10 @@ export async function requireAnyPermission(permissionNames: string[]): Promise<U
  */
 export async function isSystemAccount(userId: string): Promise<boolean> {
   try {
-    const user = await getUser(db, { id: userId });
+    const user = await userQueries.getUser(userId);
     return user?.isSystemAccount === true || false;
   } catch (error) {
     console.error('Error checking if user is system account:', error);
     return false;
   }
 }
-

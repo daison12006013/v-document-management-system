@@ -7,8 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:generate": "sqlc generate",
-    "db:validate": "sqlc validate"
+    "check-unused": "knip",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:push:force": "drizzle-kit push --force",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -18,7 +22,9 @@
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.0",
+    "drizzle-orm": "^0.44.7",
     "lucide-react": "^0.552.0",
+    "mysql2": "^3.15.3",
     "next": "^16.0.1",
     "pg": "^8.16.3",
     "react": "^19.2.0",
@@ -33,11 +39,15 @@
     "@types/react-dom": "^19.2.2",
     "autoprefixer": "^10.4.18",
     "bcrypt": "^6.0.0",
+    "dotenv": "^17.2.3",
+    "drizzle-kit": "^0.31.6",
     "eslint": "^9.38.0",
     "eslint-config-next": "^16.0.1",
+    "knip": "^5.67.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
+    "tsx": "^4.20.6",
     "typescript": "^5"
   }
 }

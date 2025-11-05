@@ -1,5 +1,5 @@
-import { LoginPage } from "@/components/login-page"
-import { AdminDashboard } from "@/components/admin-dashboard"
+import { LoginPage } from "@/components/auth/login-page"
+import { AdminDashboard } from "@/components/admin/admin-dashboard"
 import { getCurrentUser } from "@/lib/auth"
 
 export default async function Home() {

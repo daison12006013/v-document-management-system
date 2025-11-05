@@ -1,0 +1,47 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "app/**/*.{js,ts,jsx,tsx}",
+    "next.config.{js,ts}",
+    "instrumentation.{js,ts}",
+    "tailwind.config.{js,ts}",
+    "drizzle.config.{js,ts}",
+    "scripts/**/*.{js,ts}"
+  ],
+  "project": [
+    "app/**/*.{js,ts,jsx,tsx}",
+    "components/**/*.{js,ts,jsx,tsx}",
+    "lib/**/*.{js,ts,jsx,tsx}",
+    "scripts/**/*.{js,ts}"
+  ],
+  "ignore": [
+    "**/*.d.ts",
+    "next-env.d.ts",
+    ".next/**",
+    "node_modules/**",
+    "public/**",
+    "refs/**"
+  ],
+  "ignoreDependencies": [
+    "tsx",
+    "postcss-load-config"
+  ],
+  "workspaces": {
+    ".": {
+      "entry": [
+        "app/**/*.{js,ts,jsx,tsx}",
+        "next.config.{js,ts}",
+        "instrumentation.{js,ts}",
+        "tailwind.config.{js,ts}",
+        "drizzle.config.{js,ts}",
+        "scripts/**/*.{js,ts}"
+      ],
+      "project": [
+        "app/**/*.{js,ts,jsx,tsx}",
+        "components/**/*.{js,ts,jsx,tsx}",
+        "lib/**/*.{js,ts,jsx,tsx}",
+        "scripts/**/*.{js,ts}"
+      ]
+    }
+  }
+}

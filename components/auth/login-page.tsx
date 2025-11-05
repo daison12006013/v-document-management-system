@@ -1,7 +1,7 @@
 "use client"
 
-import { LoginForm } from "@/components/login-form"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { LoginForm } from "@/components/auth/login-form"
+import { ThemeToggle } from "@/components/theme/theme-toggle"
 
 export function LoginPage() {
   return (

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { getUserPermissions } from '@/app/generated-queries/rbac_sql';
+import * as userQueries from '@/lib/queries/users';
 
 // Ensure this route is never cached
 export const dynamic = 'force-dynamic';
@@ -19,7 +18,7 @@ export async function GET() {
     }
 
     // Get user permissions (includes both role-based and direct permissions)
-    const permissions = await getUserPermissions(db, { userId: user.id });
+    const permissions = await userQueries.getUserPermissions(user.id);
 
     // Debug logging (remove in production)
     console.log(`[auth/me] User ${user.id} has ${permissions.length} permissions:`, permissions.map(p => p.name));
@@ -37,4 +36,3 @@ export async function GET() {
     );
   }
 }
-

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { db } from '@/lib/db';
-import { getUserByEmail } from '@/app/generated-queries/users_sql';
+import * as userQueries from '@/lib/queries/users';
 import { logActivity } from '@/lib/activities';
 
 export async function POST(request: NextRequest) {
@@ -18,7 +17,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Get user from database
-        const user = await getUserByEmail(db, { email });
+        const user = await userQueries.getUserByEmail(email);
 
         if (!user) {
             // Don't reveal if user exists or not (security best practice)
@@ -88,4 +87,3 @@ export async function POST(request: NextRequest) {
         );
     }
 }
-

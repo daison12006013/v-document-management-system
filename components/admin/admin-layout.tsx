@@ -3,9 +3,9 @@
 import { useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { Sidebar, SidebarHeader, SidebarFooter } from "@/components/ui/sidebar"
-import { AppSidebarNav } from "@/components/app-sidebar-nav"
+import { AppSidebarNav } from "@/components/admin/app-sidebar-nav"
 import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { ThemeToggle } from "@/components/theme/theme-toggle"
 import type { User } from "@/lib/types"
 import { auth } from "@/lib/api"
 
