@@ -4,7 +4,7 @@
  */
 
 import { promises as fs } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { createHmac } from 'crypto';
 import type { StorageDriver, StorageResult, UploadSignedUrl } from '../types';
 import { getStorageConfig, getSignedUrlConfig } from '../config';
@@ -89,11 +89,60 @@ export class LocalStorageDriver implements StorageDriver {
 
     try {
       await fs.unlink(fullPath);
+      // Clean up empty parent directories
+      await this.cleanupEmptyFolders(sanitizedPath);
     } catch (error: any) {
       if (error.code !== 'ENOENT') {
         throw error;
       }
       // File doesn't exist, consider it deleted
+      // Still try to clean up in case directories exist
+      await this.cleanupEmptyFolders(sanitizedPath).catch(() => {
+        // Ignore errors during cleanup if file didn't exist
+      });
+    }
+  }
+
+  /**
+   * Recursively remove empty parent directories after file deletion
+   */
+  private async cleanupEmptyFolders(filePath: string): Promise<void> {
+    const sanitizedPath = this.sanitizePath(filePath);
+    const fullPath = join(this.storagePath, sanitizedPath);
+    let currentDir = dirname(fullPath);
+
+    // Resolve paths to handle symlinks and normalize them
+    const storageRoot = resolve(this.storagePath);
+
+    // Keep cleaning up directories until we hit a non-empty one or reach the root
+    while (true) {
+      const resolvedCurrentDir = resolve(currentDir);
+
+      // Stop if we've reached or would go above the storage root
+      if (resolvedCurrentDir === storageRoot || !resolvedCurrentDir.startsWith(storageRoot)) {
+        break;
+      }
+
+      try {
+        const entries = await fs.readdir(resolvedCurrentDir);
+
+        // If directory is empty, remove it and continue with parent
+        if (entries.length === 0) {
+          await fs.rmdir(resolvedCurrentDir);
+          currentDir = dirname(resolvedCurrentDir);
+        } else {
+          // Directory has contents, stop cleanup
+          break;
+        }
+      } catch (error: any) {
+        // If directory doesn't exist or can't be read, stop cleanup
+        if (error.code === 'ENOENT' || error.code === 'ENOTDIR') {
+          break;
+        }
+        // For other errors, log but don't throw (best effort cleanup)
+        console.warn(`Failed to cleanup directory ${resolvedCurrentDir}:`, error);
+        break;
+      }
     }
   }
 
