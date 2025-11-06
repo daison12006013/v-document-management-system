@@ -1,4 +1,4 @@
-import { eq, desc, sql, and } from 'drizzle-orm';
+import { eq, desc, sql, and, isNull } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { db } from '@/lib/db';
 import { users, userRoles, userPermissions } from '@/database/schema';
@@ -56,28 +56,34 @@ export async function deleteUser(id: string) {
 
 // Get user roles (excluding deleted)
 export async function getUserRoles(userId: string) {
-  return db.query.userRoles.findMany({
+  const result = await db.query.userRoles.findMany({
     where: and(
       eq(userRoles.userId, userId),
-      sql`${userRoles.deletedAt} IS NULL`
+      isNull(userRoles.deletedAt)
     ),
     with: {
       role: true,
     },
   });
+
+  // Filter out any entries where the role relation is null (role was deleted)
+  return result.filter(ur => ur.role !== null && ur.role !== undefined);
 }
 
 // Get user permissions (direct, excluding deleted)
 export async function getUserDirectPermissions(userId: string) {
-  return db.query.userPermissions.findMany({
+  const result = await db.query.userPermissions.findMany({
     where: and(
       eq(userPermissions.userId, userId),
-      sql`${userPermissions.deletedAt} IS NULL`
+      isNull(userPermissions.deletedAt)
     ),
     with: {
       permission: true,
     },
   });
+
+  // Filter out any entries where the permission relation is null (permission was deleted)
+  return result.filter(up => up.permission !== null && up.permission !== undefined);
 }
 
 // Get all user permissions (from roles + direct)

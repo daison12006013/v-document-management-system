@@ -1,4 +1,4 @@
-import { eq, and, or, sql, desc } from 'drizzle-orm';
+import { eq, and, or, sql, desc, isNull } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { db } from '@/lib/db';
 import {
@@ -125,7 +125,7 @@ export async function removeRoleFromUser(userId: string, roleId: string) {
       and(
         eq(userRoles.userId, userId),
         eq(userRoles.roleId, roleId),
-        sql`${userRoles.deletedAt} IS NULL`
+        isNull(userRoles.deletedAt)
       )
     );
 }
@@ -154,7 +154,7 @@ export async function removePermissionFromUser(userId: string, permissionId: str
       and(
         eq(userPermissions.userId, userId),
         eq(userPermissions.permissionId, permissionId),
-        sql`${userPermissions.deletedAt} IS NULL`
+        isNull(userPermissions.deletedAt)
       )
     );
 }
@@ -173,13 +173,13 @@ export async function checkUserPermission(
     db.query.userRoles.findMany({
       where: and(
         eq(userRoles.userId, userId),
-        sql`${userRoles.deletedAt} IS NULL`
+        isNull(userRoles.deletedAt)
       ),
     }),
     db.query.userPermissions.findMany({
       where: and(
         eq(userPermissions.userId, userId),
-        sql`${userPermissions.deletedAt} IS NULL`
+        isNull(userPermissions.deletedAt)
       ),
       with: { permission: true },
     }),

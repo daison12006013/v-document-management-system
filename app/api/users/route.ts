@@ -30,11 +30,22 @@ export const GET = withAuth(async (request: NextRequest, user) => {
                     ]);
                     // Exclude password from response
                     const { password: _, ...userWithoutPassword } = user;
+
+                    // Map roles - ensure we filter out any null/undefined roles
+                    const userRoles = (roles || [])
+                        .map(r => r?.role)
+                        .filter((role): role is NonNullable<typeof role> => Boolean(role));
+
+                    // Map direct permissions - ensure we filter out any null/undefined permissions
+                    const userDirectPermissions = (directPermissions || [])
+                        .map(p => p?.permission)
+                        .filter((permission): permission is NonNullable<typeof permission> => Boolean(permission));
+
                     return {
                         ...userWithoutPassword,
-                        roles: (roles || []).map(r => r?.role).filter(Boolean),
+                        roles: userRoles,
                         permissions: permissions || [],
-                        directPermissions: (directPermissions || []).map(p => p?.permission).filter(Boolean),
+                        directPermissions: userDirectPermissions,
                     };
                 } catch (userError) {
                     logger.error(`Error fetching data for user ${user.id}`, { error: userError });
