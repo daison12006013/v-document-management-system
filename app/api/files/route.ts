@@ -1,26 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import { requirePermission, getCurrentUser } from '@/lib/auth';
 import * as fileQueries from '@/lib/queries/files';
-import { logActivity } from '@/lib/activities';
 import { getStorageDriver } from '@/lib/storage';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 import { logger } from '@/lib/logger';
 import { withCsrfProtection } from '@/lib/middleware/csrf';
+import { withAuth } from '@/lib/middleware/auth';
+import { handleApiError } from '@/lib/utils/error-handler';
+import { normalizeParentId, normalizeParentIdFromQuery } from '@/lib/utils/files';
+import { parsePaginationParams, parseParentIdFromQuery, parseFileTypeFromQuery } from '@/lib/utils/query-params';
+import { logResourceCreated } from '@/lib/utils/activities';
+import { validateRequiredFields } from '@/lib/utils/validation';
 
 // GET /api/files - List files and folders
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, user) => {
   try {
-    await requirePermission('files', 'read');
-
-    const searchParams = request.nextUrl.searchParams;
-    const parentId = searchParams.get('parentId');
-    const type = searchParams.get('type') as 'file' | 'folder' | null;
-    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
-    const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
+    const { limit, offset } = parsePaginationParams(request);
+    const parentId = parseParentIdFromQuery(request);
+    const type = parseFileTypeFromQuery(request);
 
     const filesList = await fileQueries.listFiles({
-      parentId: parentId === 'null' ? null : parentId || undefined,
+      parentId,
       type: type || undefined,
       limit,
       offset,
@@ -28,37 +28,22 @@ export async function GET(request: NextRequest) {
 
     return createSuccessResponse(filesList);
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return createErrorResponse(ERRORS.UNAUTHORIZED);
-    }
-    if (error.message === 'Forbidden') {
-      return createErrorResponse(ERRORS.FORBIDDEN);
-    }
-    logger.error('List files API error', { error });
-    return createErrorResponse(
-      ERRORS.INTERNAL_SERVER_ERROR,
-      undefined,
-      error instanceof Error ? { message: error.message, stack: error.stack } : error
-    );
+    return handleApiError(error, 'List files');
   }
-}
+}, { requiredPermission: { resource: 'files', action: 'read' } });
 
 // POST /api/files - Upload file or create folder
-async function postHandler(request: NextRequest) {
+const postHandler = withAuth(async (request: NextRequest, user) => {
   try {
-    const user = await requirePermission('files', 'create');
-
     const contentType = request.headers.get('content-type') || '';
 
     if (contentType.includes('application/json')) {
       const body = await request.json();
       const { name, type, parentId } = body;
 
-      if (!name || !type) {
-        return createErrorResponse(
-          ERRORS.MISSING_REQUIRED_FIELDS,
-          'Name and type are required'
-        );
+      const requiredFieldsCheck = validateRequiredFields({ name, type }, ['name', 'type']);
+      if (requiredFieldsCheck.error) {
+        return requiredFieldsCheck.error;
       }
 
       if (type !== 'file' && type !== 'folder') {
@@ -66,9 +51,7 @@ async function postHandler(request: NextRequest) {
       }
 
       if (type === 'folder') {
-        const normalizedParentId = parentId && parentId.trim() !== '' && parentId !== 'null'
-          ? parentId
-          : null;
+        const normalizedParentId = normalizeParentId(parentId);
 
         const newFolder = await fileQueries.createFile({
           name,
@@ -82,11 +65,10 @@ async function postHandler(request: NextRequest) {
           return createErrorResponse(ERRORS.FAILED_TO_CREATE_FOLDER);
         }
 
-        await logActivity({
-          action: 'create',
+        await logResourceCreated({
           resourceType: 'folder',
           resourceId: newFolder.id,
-          description: `Folder created: ${newFolder.name}`,
+          resourceName: newFolder.name,
           userId: user.id,
         });
 
@@ -103,9 +85,7 @@ async function postHandler(request: NextRequest) {
       return createErrorResponse(ERRORS.FILE_REQUIRED);
     }
 
-    const parentId = parentIdRaw && parentIdRaw.trim() !== '' && parentIdRaw !== 'null'
-      ? parentIdRaw
-      : null;
+    const parentId = normalizeParentId(parentIdRaw);
 
     // Check upload limits
     const { getUploadLimits } = await import('@/lib/storage/config');
@@ -149,35 +129,23 @@ async function postHandler(request: NextRequest) {
       return createErrorResponse(ERRORS.FAILED_TO_CREATE_FILE);
     }
 
-    await logActivity({
-      action: 'create',
+    await logResourceCreated({
       resourceType: 'file',
       resourceId: newFile.id,
-      description: `File uploaded: ${newFile.name}`,
+      resourceName: newFile.name,
+      userId: user.id,
       metadata: {
         originalName: file.name,
         size: file.size,
         mimeType: file.type,
       },
-      userId: user.id,
     });
 
     return createSuccessResponse(newFile, { status: 201 });
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return createErrorResponse(ERRORS.UNAUTHORIZED);
-    }
-    if (error.message === 'Forbidden') {
-      return createErrorResponse(ERRORS.FORBIDDEN);
-    }
-    logger.error('Create file API error', { error });
-    return createErrorResponse(
-      ERRORS.INTERNAL_SERVER_ERROR,
-      error.message || undefined,
-      error instanceof Error ? { message: error.message, stack: error.stack } : error
-    );
+    return handleApiError(error, 'Create file');
   }
-}
+}, { requiredPermission: { resource: 'files', action: 'create' } });
 
 export const POST = withCsrfProtection(postHandler);
 

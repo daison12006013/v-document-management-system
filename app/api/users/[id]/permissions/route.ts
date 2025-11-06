@@ -1,56 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePermission, requireAnyPermission, getCurrentUser, isSystemAccount } from '@/lib/auth';
+import { requireAnyPermission } from '@/lib/auth';
 import * as userQueries from '@/lib/queries/users';
 import * as rbacQueries from '@/lib/queries/rbac';
-import { logActivity } from '@/lib/activities';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
-import { logger } from '@/lib/logger';
 import { withCsrfProtection } from '@/lib/middleware/csrf';
+import { withAuth } from '@/lib/middleware/auth';
+import { handleApiError } from '@/lib/utils/error-handler';
+import { mapUserRoles, mapUserDirectPermissions } from '@/lib/utils/rbac';
+import { ensureUserExists, ensurePermissionExists, ensureNotSystemAccount } from '@/lib/utils/validation';
+import { logPermissionAssigned, logPermissionRemoved } from '@/lib/utils/activities';
+import { validateRequiredFields } from '@/lib/utils/validation';
 
 // POST /api/users/[id]/permissions - Assign permission to user
-async function postHandler(
+const postHandler = withAuth(async (
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    let id: string | undefined;
+    user: any,
+    context: { params: Promise<{ id: string }> }
+) => {
     try {
         // User must have BOTH users:write AND permission to manage permissions
-        await requirePermission('users', 'write');
         await requireAnyPermission(['permissions:*', 'permissions:write']);
 
-        const currentUser = await getCurrentUser();
-        if (!currentUser) {
-            return createErrorResponse(ERRORS.UNAUTHORIZED);
-        }
-
-        const resolvedParams = await params;
-        id = resolvedParams.id;
+        const { id } = await context.params;
         const body = await request.json();
         const { permissionId } = body;
 
-        if (!permissionId) {
-            return createErrorResponse(ERRORS.PERMISSION_ID_REQUIRED);
+        const requiredFieldsCheck = validateRequiredFields({ permissionId }, ['permissionId']);
+        if (requiredFieldsCheck.error) {
+            return requiredFieldsCheck.error;
         }
 
-        // Check if user exists
-        const user = await userQueries.getUser(id);
-        if (!user) {
-            return createErrorResponse(ERRORS.USER_NOT_FOUND);
-        }
+        // Check if target user exists
+        const { user: targetUser, error: userError } = await ensureUserExists(id);
+        if (userError) return userError;
 
         // Prevent modification of system accounts
-        if (user.isSystemAccount) {
-            return createErrorResponse(ERRORS.CANNOT_MODIFY_PERMISSIONS_FOR_SYSTEM_ACCOUNT);
-        }
+        const systemAccountCheck = await ensureNotSystemAccount(id, 'modify_permissions');
+        if (systemAccountCheck.error) return systemAccountCheck.error;
 
         // Check if permission exists
-        const permission = await rbacQueries.getPermission(permissionId);
-        if (!permission) {
-            return createErrorResponse(ERRORS.PERMISSION_NOT_FOUND);
-        }
+        const { permission, error: permError } = await ensurePermissionExists(permissionId);
+        if (permError) return permError;
 
         // Assign permission to user
-        await rbacQueries.assignPermissionToUser(id, permissionId, currentUser.id);
+        await rbacQueries.assignPermissionToUser(id, permissionId, user.id);
 
         // Fetch updated user roles and permissions in parallel
         const [roles, directPermissions, permissions] = await Promise.all([
@@ -60,57 +53,38 @@ async function postHandler(
         ]);
 
         // Log permission assignment activity
-        await logActivity({
-            action: 'assign_permission',
-            resourceType: 'user_permission',
-            resourceId: id,
-            description: `Permission assigned to user: ${user.email} (permission: ${permission.name})`,
-            metadata: {
-                userId: id,
-                userEmail: user.email,
-                userName: user.name,
-                permissionId: permissionId,
-                permissionName: permission.name,
-            },
-            userId: currentUser.id,
+        await logPermissionAssigned({
+            userId: id,
+            userEmail: targetUser!.email,
+            userName: targetUser!.name,
+            permissionId,
+            permissionName: permission!.name,
+            assignedBy: user.id,
         });
 
         return createSuccessResponse({
-            roles: roles.map(r => r.role).filter(Boolean),
+            roles: mapUserRoles(roles),
             permissions,
-            directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
+            directPermissions: mapUserDirectPermissions(directPermissions),
         });
     } catch (error: any) {
-        if (error.message === 'Unauthorized') {
-            return createErrorResponse(ERRORS.UNAUTHORIZED);
-        }
-        if (error.message === 'Forbidden') {
-            return createErrorResponse(ERRORS.FORBIDDEN);
-        }
-        logger.error('Assign permission API error', { error, userId: id! });
-        return createErrorResponse(
-            ERRORS.INTERNAL_SERVER_ERROR,
-            undefined,
-            error instanceof Error ? { message: error.message, stack: error.stack } : error
-        );
+        return handleApiError(error, 'Assign permission');
     }
-}
+}, { requiredPermission: { resource: 'users', action: 'write' } });
 
 export const POST = withCsrfProtection(postHandler);
 
 // DELETE /api/users/[id]/permissions?permissionId=xxx - Remove permission from user
-async function deleteHandler(
+const deleteHandler = withAuth(async (
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    let id: string | undefined;
+    user: any,
+    context: { params: Promise<{ id: string }> }
+) => {
     try {
         // User must have BOTH users:write AND permission to manage permissions
-        await requirePermission('users', 'write');
         await requireAnyPermission(['permissions:*', 'permissions:write']);
 
-        const resolvedParams = await params;
-        id = resolvedParams.id;
+        const { id } = await context.params;
         const { searchParams } = new URL(request.url);
         const permissionId = searchParams.get('permissionId');
 
@@ -118,19 +92,16 @@ async function deleteHandler(
             return createErrorResponse(ERRORS.PERMISSION_ID_REQUIRED);
         }
 
-        // Check if user exists
-        const user = await userQueries.getUser(id);
-        if (!user) {
-            return createErrorResponse(ERRORS.USER_NOT_FOUND);
-        }
+        // Check if target user exists
+        const { user: targetUser, error: userError } = await ensureUserExists(id);
+        if (userError) return userError;
 
         // Prevent modification of system accounts
-        if (user.isSystemAccount) {
-            return createErrorResponse(ERRORS.CANNOT_MODIFY_PERMISSIONS_FOR_SYSTEM_ACCOUNT);
-        }
+        const systemAccountCheck = await ensureNotSystemAccount(id, 'modify_permissions');
+        if (systemAccountCheck.error) return systemAccountCheck.error;
 
         // Fetch the permission details for logging (before removal)
-        const removedPermission = await rbacQueries.getPermission(permissionId);
+        const { permission: removedPermission } = await ensurePermissionExists(permissionId);
 
         // Remove permission from user
         await rbacQueries.removePermissionFromUser(id, permissionId);
@@ -143,41 +114,23 @@ async function deleteHandler(
         ]);
 
         // Log permission removal activity
-        const currentUser = await getCurrentUser();
-        await logActivity({
-            action: 'remove_permission',
-            resourceType: 'user_permission',
-            resourceId: id,
-            description: `Permission removed from user: ${user.email} (permission: ${removedPermission?.name ?? permissionId})`,
-            metadata: {
-                userId: id,
-                userEmail: user.email,
-                userName: user.name,
-                permissionId: permissionId,
-                permissionName: removedPermission?.name ?? null,
-            },
-            userId: currentUser?.id ?? null,
+        await logPermissionRemoved({
+            userId: id,
+            userEmail: targetUser!.email,
+            userName: targetUser!.name,
+            permissionId,
+            permissionName: removedPermission?.name ?? null,
+            removedBy: user.id,
         });
 
         return createSuccessResponse({
-            roles: roles.map(r => r.role).filter(Boolean),
+            roles: mapUserRoles(roles),
             permissions,
-            directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
+            directPermissions: mapUserDirectPermissions(directPermissions),
         });
     } catch (error: any) {
-        if (error.message === 'Unauthorized') {
-            return createErrorResponse(ERRORS.UNAUTHORIZED);
-        }
-        if (error.message === 'Forbidden') {
-            return createErrorResponse(ERRORS.FORBIDDEN);
-        }
-        logger.error('Remove permission API error', { error, userId: id! });
-        return createErrorResponse(
-            ERRORS.INTERNAL_SERVER_ERROR,
-            undefined,
-            error instanceof Error ? { message: error.message, stack: error.stack } : error
-        );
+        return handleApiError(error, 'Remove permission');
     }
-}
+}, { requiredPermission: { resource: 'users', action: 'write' } });
 
 export const DELETE = withCsrfProtection(deleteHandler);

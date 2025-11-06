@@ -1,25 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePermission } from '@/lib/auth';
 import * as fileQueries from '@/lib/queries/files';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
-import { logger } from '@/lib/logger';
+import { withAuth } from '@/lib/middleware/auth';
+import { handleApiError } from '@/lib/utils/error-handler';
+import { ensureFileExists } from '@/lib/utils/validation';
 
 // GET /api/files/[id]/children - Get folder contents
-export async function GET(
+export const GET = withAuth(async (
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
+  user,
+  context: { params: Promise<{ id: string }> }
+) => {
   try {
-    await requirePermission('files', 'read');
+    const { id } = await context.params;
 
     // Verify the folder exists
-    const folder = await fileQueries.getFile(id);
-    if (!folder) {
+    const { file: folder, error: folderError } = await ensureFileExists(id);
+    if (folderError) {
       return createErrorResponse(ERRORS.FOLDER_NOT_FOUND);
     }
 
-    if (folder.type !== 'folder') {
+    if (folder!.type !== 'folder') {
       return createErrorResponse(ERRORS.NOT_A_FOLDER);
     }
 
@@ -28,18 +29,7 @@ export async function GET(
 
     return createSuccessResponse(children);
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return createErrorResponse(ERRORS.UNAUTHORIZED);
-    }
-    if (error.message === 'Forbidden') {
-      return createErrorResponse(ERRORS.FORBIDDEN);
-    }
-    logger.error('Get folder children API error', { error, folderId: id });
-    return createErrorResponse(
-      ERRORS.INTERNAL_SERVER_ERROR,
-      undefined,
-      error instanceof Error ? { message: error.message, stack: error.stack } : error
-    );
+    return handleApiError(error, 'Get folder children');
   }
-}
+}, { requiredPermission: { resource: 'files', action: 'read' } });
 

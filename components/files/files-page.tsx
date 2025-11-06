@@ -14,9 +14,8 @@ import {
 } from "@/components/ui/dialog"
 import { FileList } from "./file-list"
 import { Breadcrumb } from "./breadcrumb"
-import { files as filesApi, auth, ApiError } from "@/lib/api"
+import { files as filesApi, auth } from "@/lib/api"
 import type { File, Permission } from "@/lib/types"
-import { formatDate } from "@/lib/utils"
 
 interface FilesPageProps {
   user: {

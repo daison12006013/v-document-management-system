@@ -1,56 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePermission, requireAnyPermission, getCurrentUser, isSystemAccount } from '@/lib/auth';
+import { requireAnyPermission } from '@/lib/auth';
 import * as userQueries from '@/lib/queries/users';
 import * as rbacQueries from '@/lib/queries/rbac';
-import { logActivity } from '@/lib/activities';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
-import { logger } from '@/lib/logger';
 import { withCsrfProtection } from '@/lib/middleware/csrf';
+import { withAuth } from '@/lib/middleware/auth';
+import { handleApiError } from '@/lib/utils/error-handler';
+import { mapUserRoles, mapUserDirectPermissions } from '@/lib/utils/rbac';
+import { ensureUserExists, ensureRoleExists, ensureNotSystemAccount } from '@/lib/utils/validation';
+import { logRoleAssigned, logRoleRemoved } from '@/lib/utils/activities';
+import { validateRequiredFields } from '@/lib/utils/validation';
 
 // POST /api/users/[id]/roles - Assign role to user
-async function postHandler(
+const postHandler = withAuth(async (
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    let id: string | undefined;
+    user: any,
+    context: { params: Promise<{ id: string }> }
+) => {
     try {
         // User must have BOTH users:write AND permission to manage roles
-        await requirePermission('users', 'write');
         await requireAnyPermission(['roles:*', 'roles:write']);
 
-        const currentUser = await getCurrentUser();
-        if (!currentUser) {
-            return createErrorResponse(ERRORS.UNAUTHORIZED);
-        }
-
-        const resolvedParams = await params;
-        id = resolvedParams.id;
+        const { id } = await context.params;
         const body = await request.json();
         const { roleId } = body;
 
-        if (!roleId) {
-            return createErrorResponse(ERRORS.ROLE_ID_REQUIRED);
+        const requiredFieldsCheck = validateRequiredFields({ roleId }, ['roleId']);
+        if (requiredFieldsCheck.error) {
+            return requiredFieldsCheck.error;
         }
 
-        // Check if user exists
-        const user = await userQueries.getUser(id);
-        if (!user) {
-            return createErrorResponse(ERRORS.USER_NOT_FOUND);
-        }
+        // Check if target user exists
+        const { user: targetUser, error: userError } = await ensureUserExists(id);
+        if (userError) return userError;
 
         // Prevent modification of system accounts
-        if (user.isSystemAccount) {
-            return createErrorResponse(ERRORS.CANNOT_MODIFY_ROLES_FOR_SYSTEM_ACCOUNT);
-        }
+        const systemAccountCheck = await ensureNotSystemAccount(id, 'modify_roles');
+        if (systemAccountCheck.error) return systemAccountCheck.error;
 
         // Check if role exists
-        const role = await rbacQueries.getRole(roleId);
-        if (!role) {
-            return createErrorResponse(ERRORS.ROLE_NOT_FOUND);
-        }
+        const { role, error: roleError } = await ensureRoleExists(roleId);
+        if (roleError) return roleError;
 
         // Assign role to user
-        await rbacQueries.assignRoleToUser(id, roleId, currentUser.id);
+        await rbacQueries.assignRoleToUser(id, roleId, user.id);
 
         // Fetch updated user roles and permissions in parallel
         const [roles, directPermissions, permissions] = await Promise.all([
@@ -60,57 +53,38 @@ async function postHandler(
         ]);
 
         // Log role assignment activity
-        await logActivity({
-            action: 'assign_role',
-            resourceType: 'user_role',
-            resourceId: id,
-            description: `Role assigned to user: ${user.email} (role: ${role.name})`,
-            metadata: {
-                userId: id,
-                userEmail: user.email,
-                userName: user.name,
-                roleId: roleId,
-                roleName: role.name,
-            },
-            userId: currentUser.id,
+        await logRoleAssigned({
+            userId: id,
+            userEmail: targetUser!.email,
+            userName: targetUser!.name,
+            roleId,
+            roleName: role!.name,
+            assignedBy: user.id,
         });
 
         return createSuccessResponse({
-            roles: roles.map(r => r.role).filter(Boolean),
+            roles: mapUserRoles(roles),
             permissions,
-            directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
+            directPermissions: mapUserDirectPermissions(directPermissions),
         });
     } catch (error: any) {
-        if (error.message === 'Unauthorized') {
-            return createErrorResponse(ERRORS.UNAUTHORIZED);
-        }
-        if (error.message === 'Forbidden') {
-            return createErrorResponse(ERRORS.FORBIDDEN);
-        }
-        logger.error('Assign role API error', { error, userId: id! });
-        return createErrorResponse(
-            ERRORS.INTERNAL_SERVER_ERROR,
-            undefined,
-            error instanceof Error ? { message: error.message, stack: error.stack } : error
-        );
+        return handleApiError(error, 'Assign role');
     }
-}
+}, { requiredPermission: { resource: 'users', action: 'write' } });
 
 export const POST = withCsrfProtection(postHandler);
 
 // DELETE /api/users/[id]/roles?roleId=xxx - Remove role from user
-async function deleteHandler(
+const deleteHandler = withAuth(async (
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    let id: string | undefined;
+    user: any,
+    context: { params: Promise<{ id: string }> }
+) => {
     try {
         // User must have BOTH users:write AND permission to manage roles
-        await requirePermission('users', 'write');
         await requireAnyPermission(['roles:*', 'roles:write']);
 
-        const resolvedParams = await params;
-        id = resolvedParams.id;
+        const { id } = await context.params;
         const { searchParams } = new URL(request.url);
         const roleId = searchParams.get('roleId');
 
@@ -118,65 +92,44 @@ async function deleteHandler(
             return createErrorResponse(ERRORS.ROLE_ID_REQUIRED);
         }
 
-        // Check if user exists
-        const user = await userQueries.getUser(id);
-        if (!user) {
-            return createErrorResponse(ERRORS.USER_NOT_FOUND);
-        }
+        // Check if target user exists
+        const { user: targetUser, error: userError } = await ensureUserExists(id);
+        if (userError) return userError;
 
         // Prevent modification of system accounts
-        if (user.isSystemAccount) {
-            return createErrorResponse(ERRORS.CANNOT_MODIFY_ROLES_FOR_SYSTEM_ACCOUNT);
-        }
+        const systemAccountCheck = await ensureNotSystemAccount(id, 'modify_roles');
+        if (systemAccountCheck.error) return systemAccountCheck.error;
 
         // Fetch the role details for logging (before removal)
-        const removedRole = await rbacQueries.getRole(roleId);
+        const { role: removedRole } = await ensureRoleExists(roleId);
 
         // Remove role from user
         await rbacQueries.removeRoleFromUser(id, roleId);
 
         // Fetch updated user roles and permissions in parallel
-        const [roles, directPermissions, permissions, currentUser] = await Promise.all([
+        const [roles, directPermissions, permissions] = await Promise.all([
             userQueries.getUserRoles(id),
             userQueries.getUserDirectPermissions(id),
             userQueries.getUserPermissions(id),
-            getCurrentUser()
         ]);
 
-        await logActivity({
-            action: 'remove_role',
-            resourceType: 'user_role',
-            resourceId: id,
-            description: `Role removed from user: ${user.email} (role: ${removedRole?.name ?? roleId})`,
-            metadata: {
-                userId: id,
-                userEmail: user.email,
-                userName: user.name,
-                roleId: roleId,
-                roleName: removedRole?.name ?? null,
-            },
-            userId: currentUser?.id ?? null,
+        await logRoleRemoved({
+            userId: id,
+            userEmail: targetUser!.email,
+            userName: targetUser!.name,
+            roleId,
+            roleName: removedRole?.name ?? null,
+            removedBy: user.id,
         });
 
         return createSuccessResponse({
-            roles: roles.map(r => r.role).filter(Boolean),
+            roles: mapUserRoles(roles),
             permissions,
-            directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
+            directPermissions: mapUserDirectPermissions(directPermissions),
         });
     } catch (error: any) {
-        if (error.message === 'Unauthorized') {
-            return createErrorResponse(ERRORS.UNAUTHORIZED);
-        }
-        if (error.message === 'Forbidden') {
-            return createErrorResponse(ERRORS.FORBIDDEN);
-        }
-        logger.error('Remove role API error', { error, userId: id! });
-        return createErrorResponse(
-            ERRORS.INTERNAL_SERVER_ERROR,
-            undefined,
-            error instanceof Error ? { message: error.message, stack: error.stack } : error
-        );
+        return handleApiError(error, 'Remove role');
     }
-}
+}, { requiredPermission: { resource: 'users', action: 'write' } });
 
 export const DELETE = withCsrfProtection(deleteHandler);

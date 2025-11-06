@@ -2,84 +2,74 @@ import { permissions } from '@/lib/api';
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission, isSystemAccount, getCurrentUser } from '@/lib/auth';
 import * as userQueries from '@/lib/queries/users';
-import { logActivity } from '@/lib/activities';
+import { logResourceUpdated, logResourceDeleted } from '@/lib/utils/activities';
+import { ensureUserExists, ensureNotSystemAccount } from '@/lib/utils/validation';
+import { validateRequiredFields } from '@/lib/utils/validation';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 import { logger } from '@/lib/logger';
 import { withCsrfProtection } from '@/lib/middleware/csrf';
+import { excludePassword } from '@/lib/utils/user';
+import { handleApiError } from '@/lib/utils/error-handler';
+import { withAuth } from '@/lib/middleware/auth';
+import { mapUserRoles, mapUserDirectPermissions } from '@/lib/utils/rbac';
 
 // GET /api/users/[id] - Get a specific user
-export async function GET(
+export const GET = withAuth(async (
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    const { id } = await params;
+    user,
+    context: { params: Promise<{ id: string }> }
+) => {
+    const { id } = await context.params;
     try {
-        await requirePermission('users', 'read');
-        const user = await userQueries.getUser(id);
+        const targetUser = await userQueries.getUser(id);
 
-        if (!user) {
+        if (!targetUser) {
             return createErrorResponse(ERRORS.USER_NOT_FOUND);
         }
 
         // Get user roles, permissions, and direct permissions in parallel
         const [roles, directPermissions, permissions] = await Promise.all([
-            userQueries.getUserRoles(user.id),
-            userQueries.getUserDirectPermissions(user.id),
-            userQueries.getUserPermissions(user.id),
+            userQueries.getUserRoles(targetUser.id),
+            userQueries.getUserDirectPermissions(targetUser.id),
+            userQueries.getUserPermissions(targetUser.id),
         ]);
 
         // Exclude password from response
-        const { password: _, ...userWithoutPassword } = user;
+        const userWithoutPassword = excludePassword(targetUser);
         return createSuccessResponse({
             ...userWithoutPassword,
-            roles: roles.map(r => r.role).filter(Boolean),
+            roles: mapUserRoles(roles),
             permissions,
-            directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
+            directPermissions: mapUserDirectPermissions(directPermissions),
         });
     } catch (error: any) {
-        if (error.message === 'Unauthorized') {
-            return createErrorResponse(ERRORS.UNAUTHORIZED);
-        }
-        if (error.message === 'Forbidden') {
-            return createErrorResponse(ERRORS.FORBIDDEN);
-        }
-        logger.error('Get user API error', { error, userId: id });
-        return createErrorResponse(
-            ERRORS.INTERNAL_SERVER_ERROR,
-            undefined,
-            error instanceof Error ? { message: error.message, stack: error.stack } : error
-        );
+        return handleApiError(error, 'Get user');
     }
-}
+}, { requiredPermission: { resource: 'users', action: 'read' } });
 
 // PUT /api/users/[id] - Update a user
-async function putHandler(
+const putHandler = withAuth(async (
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    const { id } = await params;
+    user,
+    context: { params: Promise<{ id: string }> }
+) => {
+    const { id } = await context.params;
     try {
-        await requirePermission('users', 'write');
         const body = await request.json();
         const { email, name } = body;
 
-        if (!email || !name) {
-            return createErrorResponse(
-                ERRORS.MISSING_REQUIRED_FIELDS,
-                'Email and name are required'
-            );
+        const requiredFieldsCheck = validateRequiredFields({ email, name }, ['email', 'name']);
+        if (requiredFieldsCheck.error) {
+            return requiredFieldsCheck.error;
         }
 
         // Check if user exists
-        const existingUser = await userQueries.getUser(id);
-        if (!existingUser) {
-            return createErrorResponse(ERRORS.USER_NOT_FOUND);
-        }
+        const { user: existingUser, error: userError } = await ensureUserExists(id);
+        if (userError) return userError;
 
         // Prevent modification of system accounts
-        if (existingUser.isSystemAccount) {
-            return createErrorResponse(ERRORS.CANNOT_MODIFY_SYSTEM_ACCOUNT);
-        }
+        const systemAccountCheck = await ensureNotSystemAccount(id, 'modify');
+        if (systemAccountCheck.error) return systemAccountCheck.error;
 
         const updatedUser = await userQueries.updateUser(id, { email, name });
 
@@ -88,91 +78,61 @@ async function putHandler(
         }
 
         // Log user update activity
-        const currentUser = await getCurrentUser();
-        await logActivity({
-            action: 'update',
+        await logResourceUpdated({
             resourceType: 'user',
             resourceId: id,
-            description: `User updated: ${updatedUser.email}`,
+            resourceName: updatedUser.email,
+            userId: user.id,
             metadata: {
                 email: updatedUser.email,
                 name: updatedUser.name,
-                previousEmail: existingUser.email,
-                previousName: existingUser.name,
+                previousEmail: existingUser!.email,
+                previousName: existingUser!.name,
             },
-            userId: currentUser?.id ?? null,
         });
 
         return createSuccessResponse(updatedUser);
     } catch (error: any) {
-        if (error.message === 'Unauthorized') {
-            return createErrorResponse(ERRORS.UNAUTHORIZED);
-        }
-        if (error.message === 'Forbidden') {
-            return createErrorResponse(ERRORS.FORBIDDEN);
-        }
-        logger.error('Update user API error', { error, userId: id });
-        return createErrorResponse(
-            ERRORS.INTERNAL_SERVER_ERROR,
-            undefined,
-            error instanceof Error ? { message: error.message, stack: error.stack } : error
-        );
+        return handleApiError(error, 'Update user');
     }
-}
+}, { requiredPermission: { resource: 'users', action: 'write' } });
 
 export const PUT = withCsrfProtection(putHandler);
 
 // DELETE /api/users/[id] - Delete a user
-async function deleteHandler(
+const deleteHandler = withAuth(async (
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    const { id } = await params;
+    user,
+    context: { params: Promise<{ id: string }> }
+) => {
+    const { id } = await context.params;
     try {
-        await requirePermission('users', 'delete');
-
         // Check if user exists
-        const existingUser = await userQueries.getUser(id);
-        if (!existingUser) {
-            return createErrorResponse(ERRORS.USER_NOT_FOUND);
-        }
+        const { user: existingUser, error: userError } = await ensureUserExists(id);
+        if (userError) return userError;
 
         // Prevent deletion of system accounts
-        if (existingUser.isSystemAccount) {
-            return createErrorResponse(ERRORS.CANNOT_DELETE_SYSTEM_ACCOUNT);
-        }
+        const systemAccountCheck = await ensureNotSystemAccount(id, 'delete');
+        if (systemAccountCheck.error) return systemAccountCheck.error;
 
         await userQueries.deleteUser(id);
 
         // Log user deletion activity
-        const currentUser = await getCurrentUser();
-        await logActivity({
-            action: 'delete',
+        await logResourceDeleted({
             resourceType: 'user',
             resourceId: id,
-            description: `User deleted: ${existingUser.email}`,
+            resourceName: existingUser!.email,
+            userId: user.id,
             metadata: {
-                email: existingUser.email,
-                name: existingUser.name,
+                email: existingUser!.email,
+                name: existingUser!.name,
             },
-            userId: currentUser?.id ?? null,
         });
 
         return createSuccessResponse({ success: true });
     } catch (error: any) {
-        if (error.message === 'Unauthorized') {
-            return createErrorResponse(ERRORS.UNAUTHORIZED);
-        }
-        if (error.message === 'Forbidden') {
-            return createErrorResponse(ERRORS.FORBIDDEN);
-        }
-        logger.error('Delete user API error', { error, userId: id });
-        return createErrorResponse(
-            ERRORS.INTERNAL_SERVER_ERROR,
-            undefined,
-            error instanceof Error ? { message: error.message, stack: error.stack } : error
-        );
+        return handleApiError(error, 'Delete user');
     }
-}
+}, { requiredPermission: { resource: 'users', action: 'delete' } });
 
 export const DELETE = withCsrfProtection(deleteHandler);

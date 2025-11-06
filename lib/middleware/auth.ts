@@ -6,8 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { User } from '@/lib/types';
 import { requireAuth, requirePermission } from '@/lib/auth';
-import { UnauthorizedError, ForbiddenError } from '@/lib/errors';
-import { createErrorResponse, ERRORS } from '@/lib/error_responses';
+import { handleApiError } from '@/lib/utils/error-handler';
 
 export interface AuthContext {
   user: User;
@@ -23,6 +22,10 @@ export interface AuthMiddlewareOptions {
 /**
  * Higher-order function to wrap API route handlers with authentication
  * Handles authentication and permission checks, then passes user to handler
+ *
+ * Supports both simple handlers and handlers with Next.js route params:
+ * - Simple: withAuth(handler) -> (request) => handler(request, user)
+ * - With params: withAuth(handler) -> (request, context) => handler(request, user, context)
  */
 export function withAuth<T extends any[]>(
   handler: (request: NextRequest, user: User, ...args: T) => Promise<NextResponse>,
@@ -45,14 +48,8 @@ export function withAuth<T extends any[]>(
 
       return handler(request, user, ...args);
     } catch (error) {
-      if (error instanceof UnauthorizedError || (error as Error).message === 'Unauthorized') {
-        return createErrorResponse(ERRORS.UNAUTHORIZED);
-      }
-      if (error instanceof ForbiddenError || (error as Error).message === 'Forbidden') {
-        return createErrorResponse(ERRORS.FORBIDDEN);
-      }
-      // Re-throw unexpected errors
-      throw error;
+      // Use centralized error handler
+      return handleApiError(error, 'Authentication check');
     }
   };
 }
@@ -70,13 +67,8 @@ export function withAnyPermission(
       const user = await requireAnyPermission(permissionNames);
       return handler(request, user);
     } catch (error) {
-      if (error instanceof UnauthorizedError || (error as Error).message === 'Unauthorized') {
-        return createErrorResponse(ERRORS.UNAUTHORIZED);
-      }
-      if (error instanceof ForbiddenError || (error as Error).message === 'Forbidden') {
-        return createErrorResponse(ERRORS.FORBIDDEN);
-      }
-      throw error;
+      // Use centralized error handler
+      return handleApiError(error, 'Permission check');
     }
   };
 }

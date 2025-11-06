@@ -3,14 +3,17 @@ import bcrypt from 'bcryptjs';
 import { getCurrentUser } from '@/lib/auth';
 import * as userQueries from '@/lib/queries/users';
 import * as rbacQueries from '@/lib/queries/rbac';
-import { logActivity } from '@/lib/activities';
+import { logResourceCreated } from '@/lib/utils/activities';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 import { withAuth } from '@/lib/middleware/auth';
 import { validateRequest } from '@/lib/validations/middleware';
 import { createUserSchema } from '@/lib/validations/schemas';
 import { logger } from '@/lib/logger';
-import { UnauthorizedError, ForbiddenError, ValidationError } from '@/lib/errors';
+import { ValidationError } from '@/lib/errors';
 import { withCsrfProtection } from '@/lib/middleware/csrf';
+import { excludePassword } from '@/lib/utils/user';
+import { mapUserRoles, mapUserDirectPermissions } from '@/lib/utils/rbac';
+import { handleApiError } from '@/lib/utils/error-handler';
 import type { User } from '@/lib/types';
 
 // GET /api/users - List all users
@@ -29,17 +32,11 @@ export const GET = withAuth(async (request: NextRequest, user) => {
                         userQueries.getUserPermissions(user.id),
                     ]);
                     // Exclude password from response
-                    const { password: _, ...userWithoutPassword } = user;
+                    const userWithoutPassword = excludePassword(user);
 
-                    // Map roles - ensure we filter out any null/undefined roles
-                    const userRoles = (roles || [])
-                        .map(r => r?.role)
-                        .filter((role): role is NonNullable<typeof role> => Boolean(role));
-
-                    // Map direct permissions - ensure we filter out any null/undefined permissions
-                    const userDirectPermissions = (directPermissions || [])
-                        .map(p => p?.permission)
-                        .filter((permission): permission is NonNullable<typeof permission> => Boolean(permission));
+                    // Map roles and permissions using utilities
+                    const userRoles = mapUserRoles(roles || []);
+                    const userDirectPermissions = mapUserDirectPermissions(directPermissions || []);
 
                     return {
                         ...userWithoutPassword,
@@ -51,7 +48,7 @@ export const GET = withAuth(async (request: NextRequest, user) => {
                     logger.error(`Error fetching data for user ${user.id}`, { error: userError });
                     // Return user with empty arrays if there's an error fetching their roles/permissions
                     // Exclude password from response
-                    const { password: _, ...userWithoutPassword } = user;
+                    const userWithoutPassword = excludePassword(user);
                     return {
                         ...userWithoutPassword,
                         roles: [],
@@ -64,12 +61,7 @@ export const GET = withAuth(async (request: NextRequest, user) => {
 
         return createSuccessResponse(usersWithPermissions);
     } catch (error) {
-        logger.error('List users API error', { error });
-        return createErrorResponse(
-            ERRORS.INTERNAL_SERVER_ERROR,
-            undefined,
-            error instanceof Error ? { message: error.message, stack: error.stack } : error
-        );
+        return handleApiError(error, 'List users');
     }
 }, { requiredPermission: { resource: 'users', action: 'read' } });
 
@@ -100,38 +92,21 @@ const createUserHandler = async (request: NextRequest, user: User) => {
         }
 
         // Log user creation activity
-        await logActivity({
-            action: 'create',
+        await logResourceCreated({
             resourceType: 'user',
             resourceId: newUser.id,
-            description: `User created: ${newUser.email}`,
+            resourceName: newUser.email,
+            userId: currentUser?.id ?? user.id,
             metadata: { email: newUser.email, name: newUser.name },
-            userId: currentUser?.id ?? null,
         });
 
         logger.info('User created successfully', { userId: newUser.id, email: newUser.email, createdBy: currentUser?.id });
 
         // Exclude password from response
-        const { password: _, ...userWithoutPassword } = newUser;
+        const userWithoutPassword = excludePassword(newUser);
         return createSuccessResponse(userWithoutPassword, { status: 201 });
     } catch (error) {
-        if (error instanceof ValidationError) {
-            // Format validation error message to include specific field errors
-            let errorMessage = 'Validation failed';
-            if (error.details && Array.isArray(error.details)) {
-                const messages = error.details.map((detail: any) => detail.message).filter(Boolean);
-                if (messages.length > 0) {
-                    errorMessage = messages.join(', ');
-                }
-            }
-            return createErrorResponse(ERRORS.VALIDATION_ERROR, errorMessage, error.details);
-        }
-        logger.error('Create user API error', { error });
-        return createErrorResponse(
-            ERRORS.INTERNAL_SERVER_ERROR,
-            undefined,
-            error instanceof Error ? { message: error.message, stack: error.stack } : error
-        );
+        return handleApiError(error, 'Create user');
     }
 };
 

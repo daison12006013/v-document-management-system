@@ -1,72 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePermission, getCurrentUser } from '@/lib/auth';
 import * as fileQueries from '@/lib/queries/files';
-import { logActivity } from '@/lib/activities';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 import { logger } from '@/lib/logger';
 import { withCsrfProtection } from '@/lib/middleware/csrf';
+import { withAuth } from '@/lib/middleware/auth';
+import { handleApiError } from '@/lib/utils/error-handler';
+import { normalizeParentId } from '@/lib/utils/files';
+import { ensureFileExists } from '@/lib/utils/validation';
+import { logResourceUpdated, logResourceDeleted } from '@/lib/utils/activities';
 
 // GET /api/files/[id] - Get file/folder details
-export async function GET(
+export const GET = withAuth(async (
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
+  user,
+  context: { params: Promise<{ id: string }> }
+) => {
   try {
-    await requirePermission('files', 'read');
-    const file = await fileQueries.getFile(id);
-
-    if (!file) {
-      return createErrorResponse(ERRORS.FILE_NOT_FOUND);
-    }
+    const { id } = await context.params;
+    const { file, error } = await ensureFileExists(id);
+    if (error) return error;
 
     return createSuccessResponse(file);
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return createErrorResponse(ERRORS.UNAUTHORIZED);
-    }
-    if (error.message === 'Forbidden') {
-      return createErrorResponse(ERRORS.FORBIDDEN);
-    }
-    logger.error('Get file API error', { error, fileId: id });
-    return createErrorResponse(
-      ERRORS.INTERNAL_SERVER_ERROR,
-      undefined,
-      error instanceof Error ? { message: error.message, stack: error.stack } : error
-    );
+    return handleApiError(error, 'Get file');
   }
-}
+}, { requiredPermission: { resource: 'files', action: 'read' } });
 
 // PUT /api/files/[id] - Update file/folder metadata
-async function putHandler(
+const putHandler = withAuth(async (
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
+    user,
+    context: { params: Promise<{ id: string }> }
+) => {
   try {
-    const user = await requirePermission('files', 'update');
+    const { id } = await context.params;
+    const { file: existingFile, error: fileError } = await ensureFileExists(id);
+    if (fileError) return fileError;
+
     const body = await request.json();
     const { name, parentId: parentIdRaw, metadata } = body;
 
-    const existingFile = await fileQueries.getFile(id);
-    if (!existingFile) {
-      return createErrorResponse(ERRORS.FILE_NOT_FOUND);
-    }
-
     // Normalize parentId
-    const parentId = parentIdRaw !== undefined
-      ? (parentIdRaw && typeof parentIdRaw === 'string' && parentIdRaw.trim() !== '' && parentIdRaw !== 'null'
-          ? parentIdRaw
-          : null)
-      : undefined;
+    const parentId = parentIdRaw !== undefined ? normalizeParentId(parentIdRaw) : undefined;
 
     // Validate parent if moving to a folder
     if (parentId !== undefined && parentId !== null) {
-      const parentFile = await fileQueries.getFile(parentId);
-      if (!parentFile) {
+      const { file: parentFile, error: parentError } = await ensureFileExists(parentId);
+      if (parentError) {
         return createErrorResponse(ERRORS.PARENT_FOLDER_NOT_FOUND);
       }
-      if (parentFile.type !== 'folder') {
+      if (parentFile!.type !== 'folder') {
         return createErrorResponse(ERRORS.PARENT_MUST_BE_FOLDER);
       }
     }
@@ -81,48 +64,33 @@ async function putHandler(
       return createErrorResponse(ERRORS.FAILED_TO_UPDATE_FILE);
     }
 
-    await logActivity({
-      action: 'update',
-      resourceType: existingFile.type,
+    await logResourceUpdated({
+      resourceType: existingFile!.type,
       resourceId: id,
-      description: `File updated: ${updatedFile.name}`,
-      metadata: { previousName: existingFile.name, newName: name },
+      resourceName: updatedFile.name,
       userId: user.id,
+      previousName: existingFile!.name,
+      metadata: { newName: name },
     });
 
     return createSuccessResponse(updatedFile);
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return createErrorResponse(ERRORS.UNAUTHORIZED);
-    }
-    if (error.message === 'Forbidden') {
-      return createErrorResponse(ERRORS.FORBIDDEN);
-    }
-    logger.error('Update file API error', { error, fileId: id });
-    return createErrorResponse(
-      ERRORS.INTERNAL_SERVER_ERROR,
-      error.message || undefined,
-      error instanceof Error ? { message: error.message, stack: error.stack } : error
-    );
+    return handleApiError(error, 'Update file');
   }
-}
+}, { requiredPermission: { resource: 'files', action: 'update' } });
 
 export const PUT = withCsrfProtection(putHandler);
 
 // DELETE /api/files/[id] - Delete file/folder
-async function deleteHandler(
+const deleteHandler = withAuth(async (
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
+    user,
+    context: { params: Promise<{ id: string }> }
+) => {
   try {
-    const user = await requirePermission('files', 'delete');
-
-    // Check if file exists
-    const file = await fileQueries.getFile(id);
-    if (!file) {
-      return createErrorResponse(ERRORS.FILE_NOT_FOUND);
-    }
+    const { id } = await context.params;
+    const { file, error: fileError } = await ensureFileExists(id);
+    if (fileError) return fileError;
 
     // Soft delete - recursively deletes children if folder
     const filesToDeleteFromStorage = await fileQueries.deleteFile(id);
@@ -148,34 +116,23 @@ async function deleteHandler(
       );
     }
 
-    const description = file.type === 'folder' && filesToDeleteFromStorage.length > 0
-      ? `Folder deleted: ${file.name} (and ${filesToDeleteFromStorage.length} file(s) within)`
-      : `${file.type === 'folder' ? 'Folder' : 'File'} deleted: ${file.name}`;
+    const descriptionSuffix = file!.type === 'folder' && filesToDeleteFromStorage.length > 0
+      ? ` (and ${filesToDeleteFromStorage.length} file(s) within)`
+      : '';
 
-    await logActivity({
-      action: 'delete',
-      resourceType: file.type,
+    await logResourceDeleted({
+      resourceType: file!.type,
       resourceId: id,
-      description,
+      resourceName: file!.name,
       userId: user.id,
+      descriptionSuffix,
     });
 
     return createSuccessResponse({ success: true });
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return createErrorResponse(ERRORS.UNAUTHORIZED);
-    }
-    if (error.message === 'Forbidden') {
-      return createErrorResponse(ERRORS.FORBIDDEN);
-    }
-    logger.error('Delete file API error', { error, fileId: id });
-    return createErrorResponse(
-      ERRORS.INTERNAL_SERVER_ERROR,
-      error.message || undefined,
-      error instanceof Error ? { message: error.message, stack: error.stack } : error
-    );
+    return handleApiError(error, 'Delete file');
   }
-}
+}, { requiredPermission: { resource: 'files', action: 'delete' } });
 
 export const DELETE = withCsrfProtection(deleteHandler);
 

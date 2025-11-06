@@ -23,7 +23,6 @@ import {
   RefreshCw,
   Settings,
   Download,
-  Share,
   Trash2,
   ChevronDown,
 } from 'lucide-react';

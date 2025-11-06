@@ -86,7 +86,7 @@ async function request<T>(
         )
     }
 
-    // Handle standardized API response format
+    // Handle standardized API response format (status: 'ok' | 'error')
     if (data.status === 'error') {
         throw new ApiError(
             data.data?.message || `Request failed with status ${data.data?.code || response.status}`,
@@ -95,7 +95,7 @@ async function request<T>(
         )
     }
 
-    // Handle legacy format (for backward compatibility)
+    // If response is not ok and no standardized format, treat as error
     if (!response.ok) {
         throw new ApiError(
             data.error || data.message || `Request failed with status ${response.status}`,
@@ -104,7 +104,7 @@ async function request<T>(
         )
     }
 
-    // Return data from standardized format or legacy format
+    // Return data from standardized format (status: 'ok') or direct data
     return data.status === 'ok' ? data.data : data
 }
 

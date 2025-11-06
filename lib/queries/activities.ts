@@ -1,4 +1,4 @@
-import { desc, sql } from 'drizzle-orm';
+import { desc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { db } from '@/lib/db';
 import { activities, users } from '@/database/schema';

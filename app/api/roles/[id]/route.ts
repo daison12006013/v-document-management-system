@@ -1,51 +1,23 @@
 import { NextRequest, NextResponse } from "next/server"
 import * as rbac from "@/lib/queries/rbac"
-import { requirePermission, requireAnyPermission, getCurrentUser } from "@/lib/auth"
-import { logActivity } from "@/lib/activities"
+import { requireAnyPermission } from "@/lib/auth"
+import { logResourceUpdated, logResourceDeleted } from '@/lib/utils/activities'
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses'
 import { logger } from '@/lib/logger'
 import { withCsrfProtection } from '@/lib/middleware/csrf'
-
-// Helper function to validate and get or create a permission
-async function validateAndGetOrCreatePermission(permissionName: string) {
-  // Validate permission format: should be "resource:action" or "resource:*"
-  const permissionPattern = /^[a-zA-Z0-9_*]+:[a-zA-Z0-9_*]+$/
-  if (!permissionPattern.test(permissionName)) {
-    throw new Error(
-      `Invalid permission format: ${permissionName}. Expected format: "resource:action" or "resource:*"`
-    )
-  }
-
-  const [resource, action] = permissionName.split(":")
-
-  // Try to get existing permission
-  let permission = await rbac.getPermissionByName(permissionName)
-
-  // If doesn't exist, create it
-  if (!permission) {
-    permission = await rbac.createPermission({
-      name: permissionName,
-      resource,
-      action,
-      description: undefined,
-    })
-  }
-
-  return permission
-}
+import { withAuth } from '@/lib/middleware/auth'
+import { handleApiError } from '@/lib/utils/error-handler'
+import { validateAndGetOrCreatePermission, mapRolePermissions } from '@/lib/utils/rbac'
 
 // GET /api/roles/[id] - Get a single role
-export async function GET(
+export const GET = withAuth(async (
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  let id: string | undefined;
+  user,
+  context: { params: Promise<{ id: string }> }
+) => {
   try {
-    await requirePermission('roles', 'read')
-
-    const resolvedParams = await params;
-    id = resolvedParams.id;
-    const role = await rbac.getRole(id!)
+    const { id } = await context.params;
+    const role = await rbac.getRole(id)
 
     if (!role) {
       return createErrorResponse(ERRORS.ROLE_NOT_FOUND)
@@ -55,40 +27,26 @@ export async function GET(
 
     return createSuccessResponse({
       ...role,
-      permissions: rolePermissions.map(rp => rp.permission),
+      permissions: mapRolePermissions(rolePermissions),
     })
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return createErrorResponse(ERRORS.UNAUTHORIZED)
-    }
-    if (error.message === 'Forbidden') {
-      return createErrorResponse(ERRORS.FORBIDDEN)
-    }
-    logger.error("Error fetching role", { error, roleId: id })
-    return createErrorResponse(
-      ERRORS.INTERNAL_SERVER_ERROR,
-      undefined,
-      error instanceof Error ? { message: error.message, stack: error.stack } : error
-    )
+    return handleApiError(error, 'Get role')
   }
-}
+}, { requiredPermission: { resource: 'roles', action: 'read' } });
 
 // PUT /api/roles/[id] - Update a role
-async function putHandler(
+const putHandler = withAuth(async (
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-  let id: string | undefined;
+    user,
+    context: { params: Promise<{ id: string }> }
+) => {
   try {
-    await requirePermission('roles', 'write')
-
-    const resolvedParams = await params;
-    id = resolvedParams.id;
+    const { id } = await context.params;
     const body = await request.json()
     const { name, description, permissions } = body
 
     // Check if role exists
-    const existingRole = await rbac.getRole(id!)
+    const existingRole = await rbac.getRole(id)
     if (!existingRole) {
       return createErrorResponse(ERRORS.ROLE_NOT_FOUND)
     }
@@ -102,7 +60,7 @@ async function putHandler(
     }
 
     // Update the role
-    const updatedRole = await rbac.updateRole(id!, {
+    const updatedRole = await rbac.updateRole(id, {
       name: name || existingRole.name,
       description: description !== undefined ? description : existingRole.description,
     })
@@ -117,7 +75,7 @@ async function putHandler(
       await requireAnyPermission(['permissions:*', 'permissions:write']);
 
       // Clear existing permissions
-      await rbac.clearRolePermissions(id!)
+      await rbac.clearRolePermissions(id)
 
       // Add new permissions
       if (permissions.length > 0) {
@@ -126,7 +84,7 @@ async function putHandler(
             permissions.map(async (permissionName: string) => {
               const permission = await validateAndGetOrCreatePermission(permissionName)
               if (permission) {
-                await rbac.addPermissionToRole(id!, permission.id)
+                await rbac.addPermissionToRole(id, permission.id)
               }
             })
           )
@@ -146,102 +104,67 @@ async function putHandler(
     }
 
     // Fetch the role with its permissions
-    const rolePermissions = await rbac.getRolePermissions(id!)
+    const rolePermissions = await rbac.getRolePermissions(id)
 
     // Log role update activity
-    const currentUser = await getCurrentUser();
-    await logActivity({
-      action: 'update',
+    await logResourceUpdated({
       resourceType: 'role',
-      resourceId: id!,
-      description: `Role updated: ${updatedRole.name}`,
+      resourceId: id,
+      resourceName: updatedRole.name,
+      userId: user.id,
+      previousName: existingRole.name,
       metadata: {
-        roleId: id!,
+        roleId: id,
         roleName: updatedRole.name,
         roleDescription: updatedRole.description,
-        previousName: existingRole.name,
         previousDescription: existingRole.description,
         permissions: permissions !== undefined ? permissions : null,
       },
-      userId: currentUser?.id ?? null,
     });
 
     return createSuccessResponse({
       ...updatedRole,
-      permissions: rolePermissions.map(rp => rp.permission),
+      permissions: mapRolePermissions(rolePermissions),
     })
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return createErrorResponse(ERRORS.UNAUTHORIZED)
-    }
-    if (error.message === 'Forbidden') {
-      return createErrorResponse(ERRORS.FORBIDDEN)
-    }
-    if (error.message?.includes("Invalid permission format")) {
-      return createErrorResponse(
-        ERRORS.INVALID_PERMISSION_FORMAT,
-        error.message
-      )
-    }
-    logger.error("Error updating role", { error, roleId: id })
-    return createErrorResponse(
-      ERRORS.INTERNAL_SERVER_ERROR,
-      undefined,
-      error instanceof Error ? { message: error.message, stack: error.stack } : error
-    )
+    return handleApiError(error, 'Update role')
   }
-}
+}, { requiredPermission: { resource: 'roles', action: 'write' } });
 
 // DELETE /api/roles/[id] - Delete a role
-async function deleteHandler(
+const deleteHandler = withAuth(async (
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  let id: string | undefined;
+  user,
+  context: { params: Promise<{ id: string }> }
+) => {
   try {
-    await requirePermission('roles', 'write')
-
-    const resolvedParams = await params;
-    id = resolvedParams.id;
+    const { id } = await context.params;
     // Check if role exists
-    const role = await rbac.getRole(id!)
+    const role = await rbac.getRole(id)
     if (!role) {
       return createErrorResponse(ERRORS.ROLE_NOT_FOUND)
     }
 
-    await rbac.deleteRole(id!)
+    await rbac.deleteRole(id)
 
     // Log role deletion activity
-    const currentUser = await getCurrentUser();
-    await logActivity({
-      action: 'delete',
+    await logResourceDeleted({
       resourceType: 'role',
-      resourceId: id!,
-      description: `Role deleted: ${role.name}`,
+      resourceId: id,
+      resourceName: role.name,
+      userId: user.id,
       metadata: {
-        roleId: id!,
+        roleId: id,
         roleName: role.name,
         roleDescription: role.description,
       },
-      userId: currentUser?.id ?? null,
     });
 
     return createSuccessResponse({ success: true })
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return createErrorResponse(ERRORS.UNAUTHORIZED)
-    }
-    if (error.message === 'Forbidden') {
-      return createErrorResponse(ERRORS.FORBIDDEN)
-    }
-    logger.error("Error deleting role", { error, roleId: id })
-    return createErrorResponse(
-      ERRORS.INTERNAL_SERVER_ERROR,
-      undefined,
-      error instanceof Error ? { message: error.message, stack: error.stack } : error
-    )
+    return handleApiError(error, 'Delete role')
   }
-}
+}, { requiredPermission: { resource: 'roles', action: 'write' } });
 
 export const PUT = withCsrfProtection(putHandler);
 export const DELETE = withCsrfProtection(deleteHandler);

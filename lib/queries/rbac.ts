@@ -1,4 +1,4 @@
-import { eq, and, or, sql, desc, isNull } from 'drizzle-orm';
+import { eq, and, or, desc, isNull } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { db } from '@/lib/db';
 import {
