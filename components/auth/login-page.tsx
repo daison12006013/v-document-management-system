@@ -20,7 +20,7 @@ export function LoginPage() {
               alt="Vistra Logo"
               className="h-12"
             />
-            Welcome to the Takehome Exam
+            Welcome to the Document Management System
           </div>
           <p className="text-xl text-muted-foreground mb-12">
             Next.js application with TypeScript, Tailwind CSS, and PostgreSQL

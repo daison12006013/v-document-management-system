@@ -8,8 +8,8 @@ import "@/components/uppy/uppy-styles"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Vistra Takehome Exam",
-  description: "Next.js application for Vistra takehome exam",
+  title: "Vistra Document Management System",
+  description: "Next.js application for Vistra Document Management System",
 }
 
 export default function RootLayout({

@@ -1,0 +1,273 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch: # Allow manual triggering
+
+env:
+  DATABASE_URL: mysql://vistra_user:vistra_password@localhost:3306/vistra_db
+  NODE_ENV: test
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests
+        run: pnpm test
+
+      - name: Run unit tests with coverage
+        run: pnpm test:coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          files: ./coverage/coverage-final.json
+          flags: unit
+          name: unit-tests-coverage
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: vistra_db
+          MYSQL_USER: vistra_user
+          MYSQL_PASSWORD: vistra_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u vistra_user -pvistra_password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+        command: --default-authentication-plugin=mysql_native_password
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Wait for MySQL to be ready
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h 127.0.0.1 -u vistra_user -pvistra_password --silent 2>/dev/null; then
+              echo "MySQL is ready!"
+              break
+            fi
+            echo "Waiting for MySQL... ($i/30)"
+            sleep 2
+          done
+          # Verify connection
+          mysqladmin ping -h 127.0.0.1 -u vistra_user -pvistra_password || exit 1
+
+      - name: Setup database schema
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+        run: |
+          pnpm db:push
+          echo "✓ Database schema pushed"
+
+      - name: Seed database
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+        run: |
+          # Install mysql client if not available
+          sudo apt-get update && sudo apt-get install -y mysql-client || true
+          # Use mysql client to run seed script (fallback to docker exec if mysql client not available)
+          mysql -h 127.0.0.1 -u vistra_user -pvistra_password vistra_db < database/seeds/seed.sql || \
+          docker exec -i $(docker ps -q -f name=mysql) mysql -uvistra_user -pvistra_password vistra_db < database/seeds/seed.sql
+          echo "✓ Database seeded"
+
+      - name: Build application
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+        run: pnpm build
+
+      - name: Start Next.js server
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          NODE_ENV: test
+          PORT: 3000
+        run: |
+          pnpm start &
+          echo "Waiting for server to start..."
+          # Wait and verify server is running
+          for i in {1..30}; do
+            if curl -f http://localhost:3000/api/health/db >/dev/null 2>&1; then
+              echo "✓ Server is ready!"
+              break
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 1
+          done
+          # Final check
+          curl -f http://localhost:3000/api/health/db || exit 1
+
+      - name: Run integration tests
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          TEST_BASE_URL: http://localhost:3000
+        run: pnpm test:integration
+
+      - name: Stop Next.js server
+        if: always()
+        run: |
+          pkill -f "next start" || true
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpassword
+          MYSQL_DATABASE: vistra_db
+          MYSQL_USER: vistra_user
+          MYSQL_PASSWORD: vistra_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u vistra_user -pvistra_password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+        command: --default-authentication-plugin=mysql_native_password
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Wait for MySQL to be ready
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h 127.0.0.1 -u vistra_user -pvistra_password --silent 2>/dev/null; then
+              echo "MySQL is ready!"
+              break
+            fi
+            echo "Waiting for MySQL... ($i/30)"
+            sleep 2
+          done
+          # Verify connection
+          mysqladmin ping -h 127.0.0.1 -u vistra_user -pvistra_password || exit 1
+
+      - name: Setup database schema
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+        run: |
+          pnpm db:push
+          echo "✓ Database schema pushed"
+
+      - name: Seed database
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+        run: |
+          # Install mysql client if not available
+          sudo apt-get update && sudo apt-get install -y mysql-client || true
+          # Use mysql client to run seed script (fallback to docker exec if mysql client not available)
+          mysql -h 127.0.0.1 -u vistra_user -pvistra_password vistra_db < database/seeds/seed.sql || \
+          docker exec -i $(docker ps -q -f name=mysql) mysql -uvistra_user -pvistra_password vistra_db < database/seeds/seed.sql
+          echo "✓ Database seeded"
+
+      - name: Build application
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+        run: pnpm build
+
+      - name: Start Next.js server
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          NODE_ENV: test
+          PORT: 3000
+        run: |
+          pnpm start &
+          echo "Waiting for server to start..."
+          # Wait and verify server is running
+          for i in {1..30}; do
+            if curl -f http://localhost:3000/api/health/db >/dev/null 2>&1; then
+              echo "✓ Server is ready!"
+              break
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 1
+          done
+          # Final check
+          curl -f http://localhost:3000/api/health/db || exit 1
+
+      - name: Run E2E tests
+        env:
+          BASE_URL: http://localhost:3000
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+        run: pnpm test:e2e
+
+      - name: Stop Next.js server
+        if: always()
+        run: |
+          pkill -f "next start" || true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
