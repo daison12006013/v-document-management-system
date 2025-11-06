@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
 
 interface User {
   id: string
@@ -37,6 +38,7 @@ interface Role {
 }
 
 export function RolesPermissionsPage({ user }: { user: User }) {
+  const { toast } = useToast()
   const [roles, setRoles] = useState<Role[]>([])
   const [allPermissions, setAllPermissions] = useState<Permission[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -138,15 +140,27 @@ export function RolesPermissionsPage({ user }: { user: User }) {
       // Handle standardized API response format { status: 'ok' | 'error', data: {...} }
       if (response.ok && responseData.status !== 'error') {
         fetchRoles()
+        toast({
+          title: "Role deleted",
+          description: "Successfully deleted role",
+        })
       } else {
         const errorMessage = responseData.status === 'error'
           ? responseData.data?.message || "Failed to delete role"
           : responseData.error || "Failed to delete role"
-        alert(errorMessage)
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Error deleting role:", error)
-      alert("Failed to delete role")
+      toast({
+        title: "Error",
+        description: "Failed to delete role",
+        variant: "destructive",
+      })
     }
   }
 
@@ -233,15 +247,32 @@ export function RolesPermissionsPage({ user }: { user: User }) {
       if (response.ok && responseData.status !== 'error') {
         setIsDialogOpen(false)
         fetchRoles()
+        toast({
+          title: isEditing ? "Role updated" : "Role created",
+          description: isEditing
+            ? `Successfully updated role "${formData.name.trim()}"`
+            : `Successfully created role "${formData.name.trim()}"`,
+        })
       } else {
         const errorMessage = responseData.status === 'error'
           ? responseData.data?.message || "Failed to save role"
           : responseData.error || "Failed to save role"
         setError(errorMessage)
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Error saving role:", error)
-      setError("Failed to save role")
+      const errorMessage = "Failed to save role"
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
     }
   }
 

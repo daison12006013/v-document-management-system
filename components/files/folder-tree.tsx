@@ -273,7 +273,7 @@ export function FolderTree({ currentFolderId, onFolderSelect, onFileSelect, clas
   return (
     <div className={cn("border rounded-lg bg-card", className)}>
       <div className="p-3 border-b">
-        <h3 className="font-semibold text-sm">Files & Folders</h3>
+        <h3 className="font-semibold text-sm">Documents & Folders</h3>
       </div>
       <ScrollArea className="h-[400px]">
         <div className="p-2">

@@ -46,9 +46,9 @@ export function FileList({
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <div className="text-6xl mb-4">📁</div>
-        <h3 className="text-lg font-semibold mb-2">No files found</h3>
+        <h3 className="text-lg font-semibold mb-2">No documents found</h3>
         <p className="text-muted-foreground max-w-md">
-          This folder is empty. Upload files or create folders to get started.
+          This folder is empty. Upload documents or create folders to get started.
         </p>
       </div>
     );
@@ -84,7 +84,7 @@ export function FileList({
         <div>
           {folders.length > 0 && (
             <h3 className="text-sm font-medium text-muted-foreground mb-4">
-              Files ({fileItems.length})
+              Documents ({fileItems.length})
             </h3>
           )}
           <div className={gridClasses}>

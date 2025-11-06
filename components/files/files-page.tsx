@@ -208,8 +208,8 @@ export function FilesPage({ user }: FilesPageProps) {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Files</h1>
-          <p className="text-muted-foreground mt-1">Manage your files and folders</p>
+          <h1 className="text-3xl font-bold">Documents</h1>
+          <p className="text-muted-foreground mt-1">Manage your documents and folders</p>
         </div>
         <div className="flex gap-2">
           {canCreate && (

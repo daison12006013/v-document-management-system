@@ -181,7 +181,7 @@ export function StorageStats({ stats, isLoading = false, className }: StorageSta
             <FileText className="h-8 w-8 text-blue-500" />
             <div>
               <p className="text-2xl font-bold">{stats.fileCount.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Files</p>
+              <p className="text-sm text-muted-foreground">Documents</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">

@@ -40,6 +40,7 @@ import { Label } from '@/components/ui/label';
 import { User } from '@/lib/types';
 import { File } from '@/lib/types';
 import { api } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 import { Breadcrumb } from './breadcrumb';
 import { FileList } from './file-list';
 import { FileViewer } from './file-viewer';
@@ -59,6 +60,7 @@ type SortField = 'name' | 'size' | 'type' | 'updatedAt' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
 
 export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
+  const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
   const isInitialMount = useRef(true);
@@ -336,8 +338,17 @@ export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
     try {
       await api.files.update(file.id, { name: newName });
       await loadFiles(currentFolderId, false); // Don't update URL on refresh
-    } catch (error) {
+      toast({
+        title: "File renamed",
+        description: `Successfully renamed to "${newName}"`,
+      });
+    } catch (error: any) {
       console.error('Rename failed:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to rename file",
+        variant: "destructive",
+      });
     }
   };
 
@@ -354,8 +365,17 @@ export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
         newSet.delete(file.id);
         return newSet;
       });
-    } catch (error) {
+      toast({
+        title: "File deleted",
+        description: `Successfully deleted "${file.name}"`,
+      });
+    } catch (error: any) {
       console.error('Delete failed:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete file",
+        variant: "destructive",
+      });
     }
   };
 
@@ -408,6 +428,7 @@ export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
       // Get parent IDs before deletion to refresh tree
       const filesToDelete = filteredFiles.filter(f => selectedFiles.has(f.id));
       const parentIds = new Set(filesToDelete.map(f => f.parentId));
+      const count = selectedFiles.size;
 
       await Promise.all(
         Array.from(selectedFiles).map(fileId => api.files.delete(fileId))
@@ -422,8 +443,17 @@ export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
       }
 
       setSelectedFiles(new Set());
-    } catch (error) {
+      toast({
+        title: "Documents deleted",
+        description: `Successfully deleted ${count} file${count !== 1 ? 's' : ''}`,
+      });
+    } catch (error: any) {
       console.error('Bulk delete failed:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete files",
+        variant: "destructive",
+      });
     }
   };
 
@@ -445,9 +475,17 @@ export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
       setTreeRefreshTrigger(`${targetParentId}-${Date.now()}`);
       setIsCreateFolderOpen(false);
       setFolderName('');
-    } catch (error) {
+      toast({
+        title: "Folder created",
+        description: `Successfully created folder "${name}"`,
+      });
+    } catch (error: any) {
       console.error('Create folder failed:', error);
-      alert('Failed to create folder. Please try again.');
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create folder. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -463,6 +501,11 @@ export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
     // Refresh the folder tree for the current folder
     setTreeRefreshFolderId(currentFolderId);
     setTreeRefreshTrigger(`${currentFolderId}-${Date.now()}`);
+    const count = files.length;
+    toast({
+      title: "Upload complete",
+      description: `Successfully uploaded ${count} file${count !== 1 ? 's' : ''}`,
+    });
   };
 
   return (
@@ -472,7 +515,7 @@ export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
         <div className="w-80 border-r bg-card flex flex-col">
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">File Manager</h2>
+              <h2 className="font-semibold">Documents</h2>
               <Button
                 variant="ghost"
                 size="sm"
@@ -656,8 +699,15 @@ export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
             <InlineUploadArea
               parentId={currentFolderId}
               onUploadComplete={handleUploadComplete}
-              onUploadError={(error) => {
+              onUploadError={(error, file) => {
                 console.error('Upload error:', error);
+                toast({
+                  title: "Upload failed",
+                  description: file?.name
+                    ? `Failed to upload "${file.name}": ${error.message || 'Unknown error'}`
+                    : error.message || 'Unknown error occurred during upload',
+                  variant: "destructive",
+                });
               }}
             />
           )}
@@ -677,9 +727,9 @@ export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
                 <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
                   <Upload className="h-12 w-12 text-muted-foreground" />
                   <div>
-                    <h3 className="text-lg font-semibold mb-2">No files yet</h3>
+                    <h3 className="text-lg font-semibold mb-2">No documents yet</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Get started by uploading your first file
+                      Get started by uploading your first document
                     </p>
                     <div className="flex gap-2 justify-center">
                       <Button

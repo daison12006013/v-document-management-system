@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
 import { formatDate } from "@/lib/utils"
 import type { User, Permission, Role } from "@/lib/types"
 import { auth, users as usersApi, roles, permissions, ApiError } from "@/lib/api"
@@ -26,6 +27,7 @@ interface UsersPageProps {
 }
 
 export function UsersPage({ user: currentUser }: UsersPageProps) {
+  const { toast } = useToast()
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -150,8 +152,16 @@ export function UsersPage({ user: currentUser }: UsersPageProps) {
     try {
       if (editingUser) {
         await usersApi.update(editingUser.id, formData)
+        toast({
+          title: "User updated",
+          description: `Successfully updated user "${formData.name || formData.email}"`,
+        })
       } else {
         await usersApi.create(formData)
+        toast({
+          title: "User created",
+          description: `Successfully created user "${formData.name || formData.email}"`,
+        })
       }
 
       setIsDialogOpen(false)
@@ -160,15 +170,20 @@ export function UsersPage({ user: currentUser }: UsersPageProps) {
       fetchUsers()
     } catch (error: any) {
       console.error("Error saving user:", error)
+      let errorMessage = "Failed to save user"
       if (error instanceof ApiError) {
         if (error.status === 403) {
-          setError(editingUser ? "You don't have permission to update users" : "You don't have permission to create users")
+          errorMessage = editingUser ? "You don't have permission to update users" : "You don't have permission to create users"
         } else {
-          setError(error.message || "Failed to save user")
+          errorMessage = error.message || "Failed to save user"
         }
-      } else {
-        setError("Failed to save user")
       }
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -190,17 +205,26 @@ export function UsersPage({ user: currentUser }: UsersPageProps) {
       setIsDeleteDialogOpen(false)
       setDeletingUser(null)
       fetchUsers()
+      toast({
+        title: "User deleted",
+        description: `Successfully deleted user "${deletingUser.name || deletingUser.email}"`,
+      })
     } catch (error: any) {
       console.error("Error deleting user:", error)
+      let errorMessage = "Failed to delete user"
       if (error instanceof ApiError) {
         if (error.status === 403) {
-          setError("You don't have permission to delete users")
+          errorMessage = "You don't have permission to delete users"
         } else {
-          setError(error.message || "Failed to delete user")
+          errorMessage = error.message || "Failed to delete user"
         }
-      } else {
-        setError("Failed to delete user")
       }
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -250,17 +274,28 @@ export function UsersPage({ user: currentUser }: UsersPageProps) {
           ? { ...u, roles: data.roles, permissions: data.permissions, directPermissions: data.directPermissions || [] }
           : u
       ))
+
+      const roleName = availableRoles.find(r => r.id === roleId)?.name || "role"
+      toast({
+        title: "Role assigned",
+        description: `Successfully assigned role "${roleName}" to user`,
+      })
     } catch (error: any) {
       console.error("Error assigning role:", error)
+      let errorMessage = "Failed to assign role"
       if (error instanceof ApiError) {
         if (error.status === 403) {
-          setError("You don't have permission to assign roles")
+          errorMessage = "You don't have permission to assign roles"
         } else {
-          setError(error.message || "Failed to assign role")
+          errorMessage = error.message || "Failed to assign role"
         }
-      } else {
-        setError("Failed to assign role")
       }
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
     }
   }
 
@@ -289,17 +324,28 @@ export function UsersPage({ user: currentUser }: UsersPageProps) {
           ? { ...u, roles: data.roles, permissions: data.permissions, directPermissions: data.directPermissions || [] }
           : u
       ))
+
+      const roleName = managingUser.roles?.find(r => r.id === roleId)?.name || "role"
+      toast({
+        title: "Role removed",
+        description: `Successfully removed role "${roleName}" from user`,
+      })
     } catch (error: any) {
       console.error("Error removing role:", error)
+      let errorMessage = "Failed to remove role"
       if (error instanceof ApiError) {
         if (error.status === 403) {
-          setError("You don't have permission to remove roles")
+          errorMessage = "You don't have permission to remove roles"
         } else {
-          setError(error.message || "Failed to remove role")
+          errorMessage = error.message || "Failed to remove role"
         }
-      } else {
-        setError("Failed to remove role")
       }
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
     }
   }
 
@@ -346,17 +392,28 @@ export function UsersPage({ user: currentUser }: UsersPageProps) {
           ? { ...u, roles: data.roles, permissions: data.permissions, directPermissions: data.directPermissions || [] }
           : u
       ))
+
+      const permissionName = availablePermissions.find(p => p.id === permissionId)?.name || "permission"
+      toast({
+        title: "Permission assigned",
+        description: `Successfully assigned permission "${permissionName}" to user`,
+      })
     } catch (error: any) {
       console.error("Error assigning permission:", error)
+      let errorMessage = "Failed to assign permission"
       if (error instanceof ApiError) {
         if (error.status === 403) {
-          setError("You don't have permission to assign permissions")
+          errorMessage = "You don't have permission to assign permissions"
         } else {
-          setError(error.message || "Failed to assign permission")
+          errorMessage = error.message || "Failed to assign permission"
         }
-      } else {
-        setError("Failed to assign permission")
       }
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
     }
   }
 
@@ -385,17 +442,28 @@ export function UsersPage({ user: currentUser }: UsersPageProps) {
           ? { ...u, roles: data.roles, permissions: data.permissions, directPermissions: data.directPermissions || [] }
           : u
       ))
+
+      const permissionName = managingUser.directPermissions?.find(p => p.id === permissionId)?.name || "permission"
+      toast({
+        title: "Permission removed",
+        description: `Successfully removed permission "${permissionName}" from user`,
+      })
     } catch (error: any) {
       console.error("Error removing permission:", error)
+      let errorMessage = "Failed to remove permission"
       if (error instanceof ApiError) {
         if (error.status === 403) {
-          setError("You don't have permission to remove permissions")
+          errorMessage = "You don't have permission to remove permissions"
         } else {
-          setError(error.message || "Failed to remove permission")
+          errorMessage = error.message || "Failed to remove permission"
         }
-      } else {
-        setError("Failed to remove permission")
       }
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
     }
   }
 
