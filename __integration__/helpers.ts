@@ -15,13 +15,13 @@ export interface TestResponse<T = any> {
 }
 
 /**
- * Make an authenticated request
+ * Make an authenticated request with timeout
  */
 export async function authenticatedRequest<T>(
   path: string,
-  options: RequestInit & { cookies?: string } = {}
+  options: RequestInit & { cookies?: string; timeout?: number } = {}
 ): Promise<TestResponse<T>> {
-  const { cookies, ...fetchOptions } = options
+  const { cookies, timeout = 25000, ...fetchOptions } = options
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -33,26 +33,40 @@ export async function authenticatedRequest<T>(
     headers['Cookie'] = cookies
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...fetchOptions,
-    headers,
-  })
+  // Create an AbortController for timeout
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
 
-  const data = await response.json()
+  try {
+    const response = await fetch(`${BASE_URL}${path}`, {
+      ...fetchOptions,
+      headers,
+      signal: controller.signal,
+    })
 
-  // The API returns { status: 'ok'|'error', data: {...} } or { status: 'error', data: { error details } }
-  // Transform to match TestResponse interface
-  if (data.status === 'error') {
-    return {
-      status: 'error',
-      error: data.data, // error details are in data field
+    clearTimeout(timeoutId)
+    const data = await response.json()
+
+    // The API returns { status: 'ok'|'error', data: {...} } or { status: 'error', data: { error details } }
+    // Transform to match TestResponse interface
+    if (data.status === 'error') {
+      return {
+        status: 'error',
+        error: data.data, // error details are in data field
+      }
     }
-  }
 
-  return {
-    status: data.status || 'ok',
-    data: data.data,
-    error: undefined,
+    return {
+      status: data.status || 'ok',
+      data: data.data,
+      error: undefined,
+    }
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Request to ${path} timed out after ${timeout}ms`)
+    }
+    throw error
   }
 }
 

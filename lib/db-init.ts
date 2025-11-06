@@ -1,23 +1,18 @@
 // Database initialization utilities
-import { getClient } from './db';
+import { db } from './db';
+import { sql } from 'drizzle-orm';
 
 /**
  * Test database connection
  * Call this to verify the database is accessible
  */
 async function testConnection(): Promise<boolean> {
-  let connection;
   try {
-    connection = await getClient();
-    await connection.execute('SELECT 1 as test');
+    await db.execute(sql`SELECT 1 as test`);
     return true;
   } catch (error) {
     console.error('Database connection test failed:', error);
     return false;
-  } finally {
-    if (connection) {
-      connection.release();
-    }
   }
 }
 

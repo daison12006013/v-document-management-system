@@ -3,14 +3,14 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     // Only run on server-side
-    const { getClient } = await import('./lib/db');
+    const { db } = await import('./lib/db');
+    const { sql } = await import('drizzle-orm');
 
     // Test connection on startup
     try {
-      const connection = await getClient();
       // Perform a simple query to verify connection
-      await connection.execute('SELECT 1');
-      connection.release();
+      // Drizzle handles connection acquisition and release automatically
+      await db.execute(sql`SELECT 1`);
       console.log('✅ Database connected successfully');
     } catch (error: any) {
       // More helpful error message

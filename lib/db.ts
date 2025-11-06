@@ -61,9 +61,4 @@ function getDb() {
 // Export default db instance for convenience
 export const db = getDb();
 
-// Export pool for raw queries if needed
-export async function getClient() {
-  return getPool().getConnection();
-}
-
 

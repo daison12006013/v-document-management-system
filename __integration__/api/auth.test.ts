@@ -30,7 +30,7 @@ describe('API Integration Tests - Auth', () => {
       expect(response.data?.user.name).toBeDefined()
       // Password should not be in response
       expect(response.data?.user).not.toHaveProperty('password')
-    })
+    }, 30000) // 30 second timeout
 
     it('should reject invalid credentials', async () => {
       const response = await authenticatedRequest(

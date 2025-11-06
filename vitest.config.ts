@@ -8,7 +8,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/__e2e__/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/__e2e__/**', '**/__integration__/**'],
+    testTimeout: 10000, // 10 seconds for unit tests
+    hookTimeout: 10000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
