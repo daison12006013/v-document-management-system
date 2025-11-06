@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/auth';
 import * as fileQueries from '@/lib/queries/files';
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 
 // GET /api/files/[id]/children - Get folder contents
 export async function GET(
@@ -15,34 +16,29 @@ export async function GET(
     // Verify the folder exists
     const folder = await fileQueries.getFile(id);
     if (!folder) {
-      return NextResponse.json(
-        { error: 'Folder not found' },
-        { status: 404 }
-      );
+      return createErrorResponse(ERRORS.FOLDER_NOT_FOUND);
     }
 
     if (folder.type !== 'folder') {
-      return NextResponse.json(
-        { error: 'Item is not a folder' },
-        { status: 400 }
-      );
+      return createErrorResponse(ERRORS.NOT_A_FOLDER);
     }
 
     // Get folder children
     const children = await fileQueries.getFolderChildren(id);
 
-    return NextResponse.json(children);
+    return createSuccessResponse(children);
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return createErrorResponse(ERRORS.UNAUTHORIZED);
     }
     if (error.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return createErrorResponse(ERRORS.FORBIDDEN);
     }
     console.error('Get folder children API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     );
   }
 }

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { X, CheckCircle, AlertCircle, Upload, Pause, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatFileSize, formatSpeed, formatTime } from '@/lib/helpers';
 
 export interface UploadItem {
   id: string;
@@ -58,25 +59,6 @@ export function UploadProgress({
   const totalProgress = uploads.length > 0
     ? uploads.reduce((sum, upload) => sum + upload.progress, 0) / uploads.length
     : 0;
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const formatSpeed = (bytesPerSecond: number): string => {
-    return `${formatFileSize(bytesPerSecond)}/s`;
-  };
-
-  const formatTime = (seconds: number): string => {
-    if (seconds < 60) return `${Math.round(seconds)}s`;
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.round(seconds % 60);
-    return `${minutes}m ${remainingSeconds}s`;
-  };
 
   const getStatusIcon = (status: UploadItem['status']) => {
     switch (status) {

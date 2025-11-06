@@ -460,6 +460,9 @@ export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
   const handleUploadComplete = async (files: File[]) => {
     // Reload files after successful upload
     await loadFiles(currentFolderId, false); // Don't update URL on refresh
+    // Refresh the folder tree for the current folder
+    setTreeRefreshFolderId(currentFolderId);
+    setTreeRefreshTrigger(`${currentFolderId}-${Date.now()}`);
   };
 
   return (

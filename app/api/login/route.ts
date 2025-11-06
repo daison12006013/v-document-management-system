@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import * as userQueries from '@/lib/queries/users';
 import { logActivity } from '@/lib/activities';
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 
 export async function POST(request: NextRequest) {
     try {
@@ -10,9 +11,9 @@ export async function POST(request: NextRequest) {
 
         // Validate input
         if (!email || !password) {
-            return NextResponse.json(
-                { error: 'Email and password are required' },
-                { status: 400 }
+            return createErrorResponse(
+                ERRORS.MISSING_REQUIRED_FIELDS,
+                'Email and password are required'
             );
         }
 
@@ -21,26 +22,19 @@ export async function POST(request: NextRequest) {
 
         if (!user) {
             // Don't reveal if user exists or not (security best practice)
-            return NextResponse.json(
-                { error: 'Invalid email or password' },
-                { status: 401 }
-            );
+            return createErrorResponse(ERRORS.INVALID_CREDENTIALS);
         }
 
         // Verify password
         const isValidPassword = await bcrypt.compare(password, user.password);
 
         if (!isValidPassword) {
-            return NextResponse.json(
-                { error: 'Invalid email or password' },
-                { status: 401 }
-            );
+            return createErrorResponse(ERRORS.INVALID_CREDENTIALS);
         }
 
         // Create response with user data (excluding password)
-        const response = NextResponse.json(
+        const response = createSuccessResponse(
             {
-                success: true,
                 user: {
                     id: user.id,
                     email: user.email,
@@ -81,9 +75,10 @@ export async function POST(request: NextRequest) {
         return response;
     } catch (error) {
         console.error('Login error:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
+        return createErrorResponse(
+            ERRORS.INTERNAL_SERVER_ERROR,
+            undefined,
+            error instanceof Error ? { message: error.message, stack: error.stack } : error
         );
     }
 }

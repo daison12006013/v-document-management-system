@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import * as rbacQueries from '@/lib/queries/rbac';
 import * as dashboardQueries from '@/lib/queries/dashboard';
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 
 export async function GET() {
     try {
         const user = await getCurrentUser();
 
         if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return createErrorResponse(ERRORS.UNAUTHORIZED);
         }
 
         const result: {
@@ -86,12 +87,13 @@ export async function GET() {
             }
         });
 
-        return NextResponse.json(result);
+        return createSuccessResponse(result);
     } catch (error) {
         console.error('Dashboard API error:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
+        return createErrorResponse(
+            ERRORS.INTERNAL_SERVER_ERROR,
+            undefined,
+            error instanceof Error ? { message: error.message, stack: error.stack } : error
         );
     }
 }

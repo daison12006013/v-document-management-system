@@ -3,9 +3,9 @@ import { randomUUID } from 'crypto';
 import { db } from '@/lib/db';
 import { files } from '@/database/schema';
 
-export type FileType = 'file' | 'folder';
+type FileType = 'file' | 'folder';
 
-export interface CreateFileData {
+interface CreateFileData {
   name: string;
   type: FileType;
   parentId?: string | null;
@@ -20,7 +20,7 @@ export interface CreateFileData {
   metadata?: Record<string, any>;
 }
 
-export interface UpdateFileData {
+interface UpdateFileData {
   name?: string;
   parentId?: string | null;
   metadata?: Record<string, any>;
@@ -29,7 +29,7 @@ export interface UpdateFileData {
 /**
  * Generate path for a file/folder based on parent
  */
-export async function generatePath(name: string, parentId?: string | null): Promise<string> {
+async function generatePath(name: string, parentId?: string | null): Promise<string> {
   if (!parentId || parentId === '' || parentId === 'null') {
     return `/${name}`;
   }
@@ -236,53 +236,4 @@ export async function deleteFile(id: string): Promise<Array<{ storagePath: strin
   return filesToDeleteFromStorage;
 }
 
-// Hard delete a file (permanent removal)
-export async function hardDeleteFile(id: string) {
-  await db.delete(files).where(eq(files.id, id));
-}
-
-// Get files by user
-export async function getUserFiles(userId: string) {
-  return listFiles({ createdBy: userId });
-}
-
-// Check if a file/folder exists
-export async function fileExists(id: string): Promise<boolean> {
-  const file = await getFile(id);
-  return file !== null;
-}
-
-// Get files count
-export async function getFilesCount(options: {
-  parentId?: string | null;
-  type?: FileType;
-  createdBy?: string;
-} = {}) {
-  const { parentId, type, createdBy } = options;
-
-  const conditions = [isNull(files.deletedAt)];
-
-  if (parentId !== undefined) {
-    if (parentId === null) {
-      conditions.push(isNull(files.parentId));
-    } else {
-      conditions.push(eq(files.parentId, parentId));
-    }
-  }
-
-  if (type) {
-    conditions.push(eq(files.type, type));
-  }
-
-  if (createdBy) {
-    conditions.push(eq(files.createdBy, createdBy));
-  }
-
-  const result = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(files)
-    .where(and(...conditions));
-
-  return result[0]?.count || 0;
-}
 

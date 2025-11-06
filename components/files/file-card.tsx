@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { File } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { formatFileSize } from '@/lib/helpers';
 import { FileIcon } from './file-icon';
 import { FileContextMenu } from './context-menu';
 
@@ -72,14 +73,6 @@ export function FileCard({
   const handleDelete = () => {
     onDelete?.(file);
     setIsDeleting(false);
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
@@ -136,7 +129,7 @@ export function FileCard({
                 <div className="mb-3">
                   <FileIcon
                     fileName={file.name}
-                    mimeType={file.mimeType}
+                    mimeType={file.mimeType ?? undefined}
                     type={file.type}
                     size="lg"
                   />
@@ -151,7 +144,7 @@ export function FileCard({
                   {file.size && (
                     <span>{formatFileSize(file.size)}</span>
                   )}
-                  <span>{new Date(file.updatedAt).toLocaleDateString()}</span>
+                  <span>{file.updatedAt ? new Date(file.updatedAt).toLocaleDateString() : 'N/A'}</span>
                 </div>
 
                 {/* Actions - Bottom Right */}
@@ -223,7 +216,7 @@ export function FileCard({
                 <div className="flex-shrink-0">
                   <FileIcon
                     fileName={file.name}
-                    mimeType={file.mimeType}
+                    mimeType={file.mimeType ?? undefined}
                     type={file.type}
                     size="lg"
                   />
@@ -241,7 +234,7 @@ export function FileCard({
                       </>
                     )}
                     <span>•</span>
-                    <span>{new Date(file.updatedAt).toLocaleDateString()}</span>
+                    <span>{file.updatedAt ? new Date(file.updatedAt).toLocaleDateString() : 'N/A'}</span>
                   </div>
                 </div>
 

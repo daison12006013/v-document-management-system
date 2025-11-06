@@ -86,9 +86,18 @@ export async function getRolePermissions(roleId: string) {
 }
 
 export async function addPermissionToRole(roleId: string, permissionId: string) {
-  await db.insert(rolePermissions)
-    .values({ roleId, permissionId })
-    .onDuplicateKeyUpdate({ set: {} }); // MySQL equivalent of ON CONFLICT DO NOTHING
+  // Check if the relationship already exists
+  const existing = await db.query.rolePermissions.findFirst({
+    where: and(
+      eq(rolePermissions.roleId, roleId),
+      eq(rolePermissions.permissionId, permissionId)
+    ),
+  });
+
+  // Only insert if it doesn't exist
+  if (!existing) {
+    await db.insert(rolePermissions).values({ roleId, permissionId });
+  }
 }
 
 export async function clearRolePermissions(roleId: string) {

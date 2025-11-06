@@ -4,6 +4,7 @@ import * as fileQueries from '@/lib/queries/files';
 import { getStorageDriver } from '@/lib/storage';
 import { LocalStorageDriver } from '@/lib/storage/drivers/local';
 import { getSignedUrlConfig } from '@/lib/storage/config';
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 
 // GET /api/files/[id]/download - Get signed download URL
 export async function GET(
@@ -17,24 +18,15 @@ export async function GET(
     const file = await fileQueries.getFile(id);
 
     if (!file) {
-      return NextResponse.json(
-        { error: 'File not found' },
-        { status: 404 }
-      );
+      return createErrorResponse(ERRORS.FILE_NOT_FOUND);
     }
 
     if (file.type !== 'file') {
-      return NextResponse.json(
-        { error: 'Cannot download folder' },
-        { status: 400 }
-      );
+      return createErrorResponse(ERRORS.CANNOT_DOWNLOAD_FOLDER);
     }
 
     if (!file.storagePath || !file.storageDriver) {
-      return NextResponse.json(
-        { error: 'File storage information not available' },
-        { status: 500 }
-      );
+      return createErrorResponse(ERRORS.FILE_STORAGE_INFO_UNAVAILABLE);
     }
 
     // Get signed URL from storage driver (use the driver that stored the file)
@@ -44,7 +36,7 @@ export async function GET(
     // Note: LocalStorageDriver includes this in the token, S3/R2 drivers ignore it
     const signedUrl = await storage.getSignedUrl(file.storagePath, undefined, file.mimeType || undefined);
 
-    return NextResponse.json({
+    return createSuccessResponse({
       url: signedUrl,
       filename: file.originalName || file.name,
       mimeType: file.mimeType,
@@ -52,15 +44,16 @@ export async function GET(
     });
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return createErrorResponse(ERRORS.UNAUTHORIZED);
     }
     if (error.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return createErrorResponse(ERRORS.FORBIDDEN);
     }
     console.error('Download file API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     );
   }
 }

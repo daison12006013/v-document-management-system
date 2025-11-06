@@ -252,7 +252,7 @@ export function FolderTree({ currentFolderId, onFolderSelect, onFileSelect, clas
           >
             <FileIcon
               fileName={node.name}
-              mimeType={node.mimeType}
+              mimeType={node.mimeType ?? undefined}
               type={node.type}
               isOpen={isFolder && node.isExpanded}
               size="sm"

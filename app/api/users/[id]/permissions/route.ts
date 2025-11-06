@@ -3,6 +3,7 @@ import { requirePermission, requireAnyPermission, getCurrentUser, isSystemAccoun
 import * as userQueries from '@/lib/queries/users';
 import * as rbacQueries from '@/lib/queries/rbac';
 import { logActivity } from '@/lib/activities';
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 
 // POST /api/users/[id]/permissions - Assign permission to user
 export async function POST(
@@ -16,7 +17,7 @@ export async function POST(
 
         const currentUser = await getCurrentUser();
         if (!currentUser) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return createErrorResponse(ERRORS.UNAUTHORIZED);
         }
 
         const { id } = await params;
@@ -24,36 +25,24 @@ export async function POST(
         const { permissionId } = body;
 
         if (!permissionId) {
-            return NextResponse.json(
-                { error: 'Permission ID is required' },
-                { status: 400 }
-            );
+            return createErrorResponse(ERRORS.PERMISSION_ID_REQUIRED);
         }
 
         // Check if user exists
         const user = await userQueries.getUser(id);
         if (!user) {
-            return NextResponse.json(
-                { error: 'User not found' },
-                { status: 404 }
-            );
+            return createErrorResponse(ERRORS.USER_NOT_FOUND);
         }
 
         // Prevent modification of system accounts
         if (user.isSystemAccount) {
-            return NextResponse.json(
-                { error: 'Cannot modify permissions for system accounts' },
-                { status: 403 }
-            );
+            return createErrorResponse(ERRORS.CANNOT_MODIFY_PERMISSIONS_FOR_SYSTEM_ACCOUNT);
         }
 
         // Check if permission exists
         const permission = await rbacQueries.getPermission(permissionId);
         if (!permission) {
-            return NextResponse.json(
-                { error: 'Permission not found' },
-                { status: 404 }
-            );
+            return createErrorResponse(ERRORS.PERMISSION_NOT_FOUND);
         }
 
         // Assign permission to user
@@ -82,23 +71,23 @@ export async function POST(
             userId: currentUser.id,
         });
 
-        return NextResponse.json({
-            success: true,
+        return createSuccessResponse({
             roles: roles.map(r => r.role).filter(Boolean),
             permissions,
             directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
         });
     } catch (error: any) {
         if (error.message === 'Unauthorized') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return createErrorResponse(ERRORS.UNAUTHORIZED);
         }
         if (error.message === 'Forbidden') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return createErrorResponse(ERRORS.FORBIDDEN);
         }
         console.error('Assign permission API error:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
+        return createErrorResponse(
+            ERRORS.INTERNAL_SERVER_ERROR,
+            undefined,
+            error instanceof Error ? { message: error.message, stack: error.stack } : error
         );
     }
 }
@@ -118,27 +107,18 @@ export async function DELETE(
         const permissionId = searchParams.get('permissionId');
 
         if (!permissionId) {
-            return NextResponse.json(
-                { error: 'Permission ID is required' },
-                { status: 400 }
-            );
+            return createErrorResponse(ERRORS.PERMISSION_ID_REQUIRED);
         }
 
         // Check if user exists
         const user = await userQueries.getUser(id);
         if (!user) {
-            return NextResponse.json(
-                { error: 'User not found' },
-                { status: 404 }
-            );
+            return createErrorResponse(ERRORS.USER_NOT_FOUND);
         }
 
         // Prevent modification of system accounts
         if (user.isSystemAccount) {
-            return NextResponse.json(
-                { error: 'Cannot modify permissions for system accounts' },
-                { status: 403 }
-            );
+            return createErrorResponse(ERRORS.CANNOT_MODIFY_PERMISSIONS_FOR_SYSTEM_ACCOUNT);
         }
 
         // Fetch the permission details for logging (before removal)
@@ -171,23 +151,23 @@ export async function DELETE(
             userId: currentUser?.id ?? null,
         });
 
-        return NextResponse.json({
-            success: true,
+        return createSuccessResponse({
             roles: roles.map(r => r.role).filter(Boolean),
             permissions,
             directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
         });
     } catch (error: any) {
         if (error.message === 'Unauthorized') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return createErrorResponse(ERRORS.UNAUTHORIZED);
         }
         if (error.message === 'Forbidden') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return createErrorResponse(ERRORS.FORBIDDEN);
         }
         console.error('Remove permission API error:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
+        return createErrorResponse(
+            ERRORS.INTERNAL_SERVER_ERROR,
+            undefined,
+            error instanceof Error ? { message: error.message, stack: error.stack } : error
         );
     }
 }

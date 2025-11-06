@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Download, ZoomIn, ZoomOut, RotateCw, Loader2 } from 'lucide-react';
 import { File } from '@/lib/types';
+import { formatFileSize } from '@/lib/helpers';
 
 interface FileViewerProps {
   file: File | null;
@@ -35,10 +36,18 @@ export function FileViewer({ file, isOpen, onClose, onDownload }: FileViewerProp
       setError(null);
       try {
         const response = await fetch(`/api/files/${file.id}/download`);
-        if (!response.ok) {
-          throw new Error('Failed to get file URL');
+        const responseData = await response.json();
+
+        // Handle standardized API response format { status: 'ok' | 'error', data: {...} }
+        if (responseData.status === 'error') {
+          throw new Error(responseData.data?.message || 'Failed to get file URL');
         }
-        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(responseData.data?.message || 'Failed to get file URL');
+        }
+
+        const data = responseData.status === 'ok' ? responseData.data : responseData;
         setPreviewUrl(data.url);
 
         // For text files, fetch the actual content
@@ -314,12 +323,4 @@ export function FileViewer({ file, isOpen, onClose, onDownload }: FileViewerProp
       </DialogContent>
     </Dialog>
   );
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }

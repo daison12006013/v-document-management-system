@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import * as rbac from "@/lib/queries/rbac"
 import { requireAnyPermission } from "@/lib/auth"
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses'
 
 // GET /api/permissions - List all permissions
 // Users with permissions:read OR users:write can list permissions
@@ -12,18 +13,19 @@ export async function GET() {
 
     const permissions = await rbac.listPermissions()
 
-    return NextResponse.json(permissions)
+    return createSuccessResponse(permissions)
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return createErrorResponse(ERRORS.UNAUTHORIZED)
     }
     if (error.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return createErrorResponse(ERRORS.FORBIDDEN)
     }
     console.error("Error fetching permissions:", error)
-    return NextResponse.json(
-      { error: "Failed to fetch permissions" },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     )
   }
 }

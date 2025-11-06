@@ -1,12 +1,14 @@
 import { UsersPage } from "@/components/admin/users-page"
 import { getCurrentUser } from "@/lib/auth"
+import { redirect } from "next/navigation"
 
 export default async function Users() {
   const user = await getCurrentUser()
 
-  // User authentication is handled by the layout
-  // This is guaranteed to have a user due to layout redirect
+  if (!user) {
+    redirect("/")
+  }
 
-  return <UsersPage user={user!} />
+  return <UsersPage user={user} />
 }
 

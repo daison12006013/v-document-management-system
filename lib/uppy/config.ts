@@ -17,7 +17,7 @@ import Url from '@uppy/url';
 import Webcam from '@uppy/webcam';
 import { UppyFile } from '@uppy/core';
 
-export interface UppyConfig {
+interface UppyConfig {
   maxFileSize?: number; // in bytes
   allowedFileTypes?: string[] | null; // null means all types
   autoProceed?: boolean;
@@ -212,49 +212,5 @@ export function createUppyInstance(config: UppyConfig = {}) {
   }
 
   return uppy;
-}
-
-/**
- * Configure Uppy Dashboard plugin
- * Note: This should only be called on the client side
- */
-export function configureDashboard(uppy: Uppy, options: {
-  inline?: boolean;
-  target?: string | HTMLElement;
-  width?: number;
-  height?: number;
-  showProgressDetails?: boolean;
-  showRemoveButtonAfterComplete?: boolean;
-  proudlyDisplayPoweredByUppy?: boolean;
-  theme?: 'light' | 'dark' | 'auto';
-} = {}) {
-  // Only configure if we're on the client side
-  if (typeof window === 'undefined') {
-    return uppy;
-  }
-
-  uppy.use(Dashboard, {
-    inline: options.inline ?? true,
-    target: options.target,
-    width: options.width,
-    height: options.height,
-    showRemoveButtonAfterComplete: options.showRemoveButtonAfterComplete ?? true,
-    proudlyDisplayPoweredByUppy: options.proudlyDisplayPoweredByUppy ?? false,
-    theme: options.theme ?? 'auto',
-    note: `Maximum file size: ${formatFileSize(getUploadLimits().maxFileSize)}`,
-  });
-
-  return uppy;
-}
-
-/**
- * Format file size for display
- */
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
 

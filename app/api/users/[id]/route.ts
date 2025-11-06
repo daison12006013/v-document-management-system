@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission, isSystemAccount, getCurrentUser } from '@/lib/auth';
 import * as userQueries from '@/lib/queries/users';
 import { logActivity } from '@/lib/activities';
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 
 // GET /api/users/[id] - Get a specific user
 export async function GET(
@@ -16,10 +17,7 @@ export async function GET(
         const user = await userQueries.getUser(id);
 
         if (!user) {
-            return NextResponse.json(
-                { error: 'User not found' },
-                { status: 404 }
-            );
+            return createErrorResponse(ERRORS.USER_NOT_FOUND);
         }
 
         // Get user roles, permissions, and direct permissions in parallel
@@ -29,7 +27,7 @@ export async function GET(
             userQueries.getUserPermissions(user.id),
         ]);
 
-        return NextResponse.json({
+        return createSuccessResponse({
             ...user,
             roles: roles.map(r => r.role).filter(Boolean),
             permissions,
@@ -37,15 +35,16 @@ export async function GET(
         });
     } catch (error: any) {
         if (error.message === 'Unauthorized') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return createErrorResponse(ERRORS.UNAUTHORIZED);
         }
         if (error.message === 'Forbidden') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return createErrorResponse(ERRORS.FORBIDDEN);
         }
         console.error('Get user API error:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
+        return createErrorResponse(
+            ERRORS.INTERNAL_SERVER_ERROR,
+            undefined,
+            error instanceof Error ? { message: error.message, stack: error.stack } : error
         );
     }
 }
@@ -63,36 +62,27 @@ export async function PUT(
         const { email, name } = body;
 
         if (!email || !name) {
-            return NextResponse.json(
-                { error: 'Email and name are required' },
-                { status: 400 }
+            return createErrorResponse(
+                ERRORS.MISSING_REQUIRED_FIELDS,
+                'Email and name are required'
             );
         }
 
         // Check if user exists
         const existingUser = await userQueries.getUser(id);
         if (!existingUser) {
-            return NextResponse.json(
-                { error: 'User not found' },
-                { status: 404 }
-            );
+            return createErrorResponse(ERRORS.USER_NOT_FOUND);
         }
 
         // Prevent modification of system accounts
         if (existingUser.isSystemAccount) {
-            return NextResponse.json(
-                { error: 'Cannot modify system accounts' },
-                { status: 403 }
-            );
+            return createErrorResponse(ERRORS.CANNOT_MODIFY_SYSTEM_ACCOUNT);
         }
 
         const updatedUser = await userQueries.updateUser(id, { email, name });
 
         if (!updatedUser) {
-            return NextResponse.json(
-                { error: 'Failed to update user' },
-                { status: 500 }
-            );
+            return createErrorResponse(ERRORS.FAILED_TO_UPDATE_USER);
         }
 
         // Log user update activity
@@ -111,18 +101,19 @@ export async function PUT(
             userId: currentUser?.id ?? null,
         });
 
-        return NextResponse.json(updatedUser);
+        return createSuccessResponse(updatedUser);
     } catch (error: any) {
         if (error.message === 'Unauthorized') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return createErrorResponse(ERRORS.UNAUTHORIZED);
         }
         if (error.message === 'Forbidden') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return createErrorResponse(ERRORS.FORBIDDEN);
         }
         console.error('Update user API error:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
+        return createErrorResponse(
+            ERRORS.INTERNAL_SERVER_ERROR,
+            undefined,
+            error instanceof Error ? { message: error.message, stack: error.stack } : error
         );
     }
 }
@@ -140,18 +131,12 @@ export async function DELETE(
         // Check if user exists
         const existingUser = await userQueries.getUser(id);
         if (!existingUser) {
-            return NextResponse.json(
-                { error: 'User not found' },
-                { status: 404 }
-            );
+            return createErrorResponse(ERRORS.USER_NOT_FOUND);
         }
 
         // Prevent deletion of system accounts
         if (existingUser.isSystemAccount) {
-            return NextResponse.json(
-                { error: 'Cannot delete system accounts' },
-                { status: 403 }
-            );
+            return createErrorResponse(ERRORS.CANNOT_DELETE_SYSTEM_ACCOUNT);
         }
 
         await userQueries.deleteUser(id);
@@ -170,18 +155,19 @@ export async function DELETE(
             userId: currentUser?.id ?? null,
         });
 
-        return NextResponse.json({ success: true });
+        return createSuccessResponse({ success: true });
     } catch (error: any) {
         if (error.message === 'Unauthorized') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return createErrorResponse(ERRORS.UNAUTHORIZED);
         }
         if (error.message === 'Forbidden') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return createErrorResponse(ERRORS.FORBIDDEN);
         }
         console.error('Delete user API error:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
+        return createErrorResponse(
+            ERRORS.INTERNAL_SERVER_ERROR,
+            undefined,
+            error instanceof Error ? { message: error.message, stack: error.stack } : error
         );
     }
 }

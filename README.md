@@ -23,36 +23,11 @@ A Next.js application built with TypeScript, Tailwind CSS, MySQL, and Drizzle OR
 
 ### Installation
 
-1. Install dependencies (uses pnpm):
+1. Make sure your Docker is running and you have internet access to download the container image.
 
-```bash
-make install
-# or directly: pnpm install
-```
+2. Run `make setup`
 
-2. Start MySQL database:
-
-```bash
-make db-start
-```
-
-3. Push database schema:
-
-```bash
-make db-push
-```
-
-4. Seed database with initial data:
-
-```bash
-make db-seed
-```
-
-Or run the complete setup:
-
-```bash
-make setup  # install + start DB + push schema + seed
-```
+To destroy everything, run `make clean`
 
 ### Development
 
@@ -111,10 +86,12 @@ make db-studio
 
 ### Login Credentials
 
-For development and testing, the following credentials are available (displayed on the landing page):
+For development and testing, the following credentials are available:
 
 - **Email**: `admin@vistra.com`
 - **Password**: `admin123`
+
+*Note: The email address is shown as a placeholder in the login form.*
 
 These correspond to seeded database users. Run `make db-seed` to populate the database with initial data.
 
@@ -237,9 +214,9 @@ curl http://localhost:3000/api/health/db
 ## Development Workflow
 
 1. **Make Schema Changes**: Edit files in `database/schema/*.ts`
-2. **Sync Schema**: Run `pnpm db:push` (development) or generate migrations (production)
+2. **Sync Schema**: Run `make db-push` (development) or `make db-generate` followed by `make db-migrate` (production)
 3. **Update Queries**: Update query functions in `lib/queries/*.ts` if needed
-4. **Test**: Start dev server with `make dev` or `pnpm dev:with-db`
+4. **Test**: Start dev server with `make dev`
 
 
 ## License

@@ -29,9 +29,6 @@ function getPool(): mysql.Pool {
       queueLimit: 0,
       enableKeepAlive: true,
       keepAliveInitialDelay: 0,
-      // Connection timeout settings
-      acquireTimeout: 60000, // 60 seconds to acquire connection
-      timeout: 60000, // 60 seconds query timeout
     });
 
     // Handle pool errors
@@ -71,13 +68,4 @@ export async function getClient() {
   return getPool().getConnection();
 }
 
-// Get pool statistics for monitoring
-export function getPoolStats() {
-  const pool = getPool();
-  return {
-    totalConnections: (pool as any)._allConnections?.length || 0,
-    freeConnections: (pool as any)._freeConnections?.length || 0,
-    queueLength: (pool as any)._connectionQueue?.length || 0,
-  };
-}
 

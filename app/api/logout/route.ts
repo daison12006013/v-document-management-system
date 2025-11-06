@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getCurrentUser } from '@/lib/auth';
 import { logActivity } from '@/lib/activities';
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 
 export async function POST() {
   try {
@@ -15,7 +16,7 @@ export async function POST() {
       // User might not be authenticated, continue with logout
     }
 
-    const response = NextResponse.json({ success: true });
+    const response = createSuccessResponse({ success: true });
 
     // Clear the session cookie
     cookieStore.delete('vistra_session');
@@ -36,9 +37,10 @@ export async function POST() {
     return response;
   } catch (error) {
     console.error('Logout error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     );
   }
 }

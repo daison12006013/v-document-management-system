@@ -60,12 +60,20 @@ export function RolesPermissionsPage({ user }: { user: User }) {
     try {
       setIsLoading(true)
       const response = await fetch("/api/roles")
-      if (response.ok) {
-        const data = await response.json()
-        setRoles(data)
+      const result = await response.json()
+
+      // Handle standardized API response format { status: 'ok' | 'error', data: {...} }
+      if (response.ok && result.status === 'ok') {
+        const rolesData = result.data
+        setRoles(Array.isArray(rolesData) ? rolesData : [])
+      } else {
+        // On error, ensure roles is still an array
+        console.error("Error fetching roles:", result.status === 'error' ? result.data?.message : 'Unknown error')
+        setRoles([])
       }
     } catch (error) {
       console.error("Error fetching roles:", error)
+      setRoles([])
     } finally {
       setIsLoading(false)
     }
@@ -74,12 +82,19 @@ export function RolesPermissionsPage({ user }: { user: User }) {
   const fetchPermissions = async () => {
     try {
       const response = await fetch("/api/permissions")
-      if (response.ok) {
-        const data = await response.json()
-        setAllPermissions(data)
+      const result = await response.json()
+
+      // Handle standardized API response format { status: 'ok' | 'error', data: {...} }
+      if (response.ok && result.status === 'ok') {
+        const permissionsData = result.data
+        setAllPermissions(Array.isArray(permissionsData) ? permissionsData : [])
+      } else {
+        console.error("Error fetching permissions:", result.status === 'error' ? result.data?.message : 'Unknown error')
+        setAllPermissions([])
       }
     } catch (error) {
       console.error("Error fetching permissions:", error)
+      setAllPermissions([])
     }
   }
 
@@ -118,12 +133,16 @@ export function RolesPermissionsPage({ user }: { user: User }) {
       const response = await fetch(`/api/roles/${roleId}`, {
         method: "DELETE",
       })
+      const responseData = await response.json()
 
-      if (response.ok) {
+      // Handle standardized API response format { status: 'ok' | 'error', data: {...} }
+      if (response.ok && responseData.status !== 'error') {
         fetchRoles()
       } else {
-        const data = await response.json()
-        alert(data.error || "Failed to delete role")
+        const errorMessage = responseData.status === 'error'
+          ? responseData.data?.message || "Failed to delete role"
+          : responseData.error || "Failed to delete role"
+        alert(errorMessage)
       }
     } catch (error) {
       console.error("Error deleting role:", error)
@@ -208,13 +227,17 @@ export function RolesPermissionsPage({ user }: { user: User }) {
           permissions: formData.permissions,
         }),
       })
+      const responseData = await response.json()
 
-      if (response.ok) {
+      // Handle standardized API response format { status: 'ok' | 'error', data: {...} }
+      if (response.ok && responseData.status !== 'error') {
         setIsDialogOpen(false)
         fetchRoles()
       } else {
-        const data = await response.json()
-        setError(data.error || "Failed to save role")
+        const errorMessage = responseData.status === 'error'
+          ? responseData.data?.message || "Failed to save role"
+          : responseData.error || "Failed to save role"
+        setError(errorMessage)
       }
     } catch (error) {
       console.error("Error saving role:", error)

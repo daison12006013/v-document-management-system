@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import * as rbac from "@/lib/queries/rbac"
 import { requirePermission, requireAnyPermission, getCurrentUser } from "@/lib/auth"
 import { logActivity } from "@/lib/activities"
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses'
 
 // Helper function to validate and get or create a permission
 async function validateAndGetOrCreatePermission(permissionName: string) {
@@ -43,26 +44,27 @@ export async function GET(
     const role = await rbac.getRole(id)
 
     if (!role) {
-      return NextResponse.json({ error: "Role not found" }, { status: 404 })
+      return createErrorResponse(ERRORS.ROLE_NOT_FOUND)
     }
 
     const rolePermissions = await rbac.getRolePermissions(role.id)
 
-    return NextResponse.json({
+    return createSuccessResponse({
       ...role,
       permissions: rolePermissions.map(rp => rp.permission),
     })
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return createErrorResponse(ERRORS.UNAUTHORIZED)
     }
     if (error.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return createErrorResponse(ERRORS.FORBIDDEN)
     }
     console.error("Error fetching role:", error)
-    return NextResponse.json(
-      { error: "Failed to fetch role" },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     )
   }
 }
@@ -82,17 +84,14 @@ export async function PUT(
     // Check if role exists
     const existingRole = await rbac.getRole(id)
     if (!existingRole) {
-      return NextResponse.json({ error: "Role not found" }, { status: 404 })
+      return createErrorResponse(ERRORS.ROLE_NOT_FOUND)
     }
 
     // Check if name is being changed and if new name already exists
     if (name && name !== existingRole.name) {
       const roleWithName = await rbac.getRoleByName(name)
       if (roleWithName && roleWithName.id !== id) {
-        return NextResponse.json(
-          { error: "Role with this name already exists" },
-          { status: 409 }
-        )
+        return createErrorResponse(ERRORS.ROLE_ALREADY_EXISTS)
       }
     }
 
@@ -103,10 +102,7 @@ export async function PUT(
     })
 
     if (!updatedRole) {
-      return NextResponse.json(
-        { error: "Failed to update role" },
-        { status: 500 }
-      )
+      return createErrorResponse(ERRORS.FAILED_TO_UPDATE_ROLE)
     }
 
     // Update permissions if provided
@@ -133,7 +129,10 @@ export async function PUT(
           // Note: We already cleared permissions, so we'd need to track them to restore
           // For now, we'll just return the error
           if (permError.message?.includes("Invalid permission format")) {
-            return NextResponse.json({ error: permError.message }, { status: 400 })
+            return createErrorResponse(
+              ERRORS.INVALID_PERMISSION_FORMAT,
+              permError.message
+            )
           }
           throw permError
         }
@@ -161,24 +160,28 @@ export async function PUT(
       userId: currentUser?.id ?? null,
     });
 
-    return NextResponse.json({
+    return createSuccessResponse({
       ...updatedRole,
       permissions: rolePermissions.map(rp => rp.permission),
     })
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return createErrorResponse(ERRORS.UNAUTHORIZED)
     }
     if (error.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return createErrorResponse(ERRORS.FORBIDDEN)
     }
     if (error.message?.includes("Invalid permission format")) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return createErrorResponse(
+        ERRORS.INVALID_PERMISSION_FORMAT,
+        error.message
+      )
     }
     console.error("Error updating role:", error)
-    return NextResponse.json(
-      { error: "Failed to update role" },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     )
   }
 }
@@ -195,7 +198,7 @@ export async function DELETE(
     // Check if role exists
     const role = await rbac.getRole(id)
     if (!role) {
-      return NextResponse.json({ error: "Role not found" }, { status: 404 })
+      return createErrorResponse(ERRORS.ROLE_NOT_FOUND)
     }
 
     await rbac.deleteRole(id)
@@ -215,18 +218,19 @@ export async function DELETE(
       userId: currentUser?.id ?? null,
     });
 
-    return NextResponse.json({ success: true })
+    return createSuccessResponse({ success: true })
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return createErrorResponse(ERRORS.UNAUTHORIZED)
     }
     if (error.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return createErrorResponse(ERRORS.FORBIDDEN)
     }
     console.error("Error deleting role:", error)
-    return NextResponse.json(
-      { error: "Failed to delete role" },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     )
   }
 }

@@ -4,6 +4,7 @@ import { requirePermission, getCurrentUser } from '@/lib/auth';
 import * as fileQueries from '@/lib/queries/files';
 import { logActivity } from '@/lib/activities';
 import { getStorageDriver } from '@/lib/storage';
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 
 // GET /api/files - List files and folders
 export async function GET(request: NextRequest) {
@@ -23,18 +24,19 @@ export async function GET(request: NextRequest) {
       offset,
     });
 
-    return NextResponse.json(filesList);
+    return createSuccessResponse(filesList);
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return createErrorResponse(ERRORS.UNAUTHORIZED);
     }
     if (error.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return createErrorResponse(ERRORS.FORBIDDEN);
     }
     console.error('List files API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     );
   }
 }
@@ -51,17 +53,14 @@ export async function POST(request: NextRequest) {
       const { name, type, parentId } = body;
 
       if (!name || !type) {
-        return NextResponse.json(
-          { error: 'Name and type are required' },
-          { status: 400 }
+        return createErrorResponse(
+          ERRORS.MISSING_REQUIRED_FIELDS,
+          'Name and type are required'
         );
       }
 
       if (type !== 'file' && type !== 'folder') {
-        return NextResponse.json(
-          { error: 'Type must be "file" or "folder"' },
-          { status: 400 }
-        );
+        return createErrorResponse(ERRORS.INVALID_FILE_TYPE);
       }
 
       if (type === 'folder') {
@@ -78,10 +77,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (!newFolder) {
-          return NextResponse.json(
-            { error: 'Failed to create folder' },
-            { status: 500 }
-          );
+          return createErrorResponse(ERRORS.FAILED_TO_CREATE_FOLDER);
         }
 
         await logActivity({
@@ -92,7 +88,7 @@ export async function POST(request: NextRequest) {
           userId: user.id,
         });
 
-        return NextResponse.json(newFolder, { status: 201 });
+        return createSuccessResponse(newFolder, { status: 201 });
       }
     }
 
@@ -102,10 +98,7 @@ export async function POST(request: NextRequest) {
     const name = formData.get('name') as string | null;
 
     if (!file) {
-      return NextResponse.json(
-        { error: 'File is required' },
-        { status: 400 }
-      );
+      return createErrorResponse(ERRORS.FILE_REQUIRED);
     }
 
     const parentId = parentIdRaw && parentIdRaw.trim() !== '' && parentIdRaw !== 'null'
@@ -117,9 +110,9 @@ export async function POST(request: NextRequest) {
     const limits = getUploadLimits();
 
     if (file.size > limits.maxFileSize) {
-      return NextResponse.json(
-        { error: `File size exceeds maximum of ${limits.maxFileSize} bytes` },
-        { status: 400 }
+      return createErrorResponse(
+        ERRORS.FILE_SIZE_EXCEEDED,
+        `File size exceeds maximum of ${limits.maxFileSize} bytes`
       );
     }
 
@@ -151,10 +144,7 @@ export async function POST(request: NextRequest) {
       } catch (deleteError) {
         console.error('Failed to cleanup uploaded file:', deleteError);
       }
-      return NextResponse.json(
-        { error: 'Failed to create file record' },
-        { status: 500 }
-      );
+      return createErrorResponse(ERRORS.FAILED_TO_CREATE_FILE);
     }
 
     await logActivity({
@@ -170,18 +160,19 @@ export async function POST(request: NextRequest) {
       userId: user.id,
     });
 
-    return NextResponse.json(newFile, { status: 201 });
+    return createSuccessResponse(newFile, { status: 201 });
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return createErrorResponse(ERRORS.UNAUTHORIZED);
     }
     if (error.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return createErrorResponse(ERRORS.FORBIDDEN);
     }
     console.error('Create file API error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      error.message || undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     );
   }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import * as userQueries from '@/lib/queries/users';
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 
 // Ensure this route is never cached
 export const dynamic = 'force-dynamic';
@@ -11,10 +12,7 @@ export async function GET() {
     const user = await getCurrentUser();
 
     if (!user) {
-      return NextResponse.json(
-        { authenticated: false },
-        { status: 401 }
-      );
+      return createErrorResponse(ERRORS.UNAUTHORIZED);
     }
 
     // Get user permissions (includes both role-based and direct permissions)
@@ -23,16 +21,17 @@ export async function GET() {
     // Debug logging (remove in production)
     console.log(`[auth/me] User ${user.id} has ${permissions.length} permissions:`, permissions.map(p => p.name));
 
-    return NextResponse.json({
+    return createSuccessResponse({
       authenticated: true,
       user,
       permissions,
     });
   } catch (error) {
     console.error('Auth check error:', error);
-    return NextResponse.json(
-      { authenticated: false, error: 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     );
   }
 }

@@ -4,6 +4,7 @@ import { requirePermission, getCurrentUser } from '@/lib/auth';
 import * as userQueries from '@/lib/queries/users';
 import * as rbacQueries from '@/lib/queries/rbac';
 import { logActivity } from '@/lib/activities';
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 
 // GET /api/users - List all users
 export async function GET() {
@@ -15,33 +16,45 @@ export async function GET() {
         // For each user, get their roles and permissions
         const usersWithPermissions = await Promise.all(
             usersList.map(async (user) => {
-                // getUserRoles and getUserDirectPermissions are independent, so fetch them in parallel
-                const [roles, directPermissions, permissions] = await Promise.all([
-                    userQueries.getUserRoles(user.id),
-                    userQueries.getUserDirectPermissions(user.id),
-                    userQueries.getUserPermissions(user.id),
-                ]);
-                return {
-                    ...user,
-                    roles: roles.map(r => r.role).filter(Boolean),
-                    permissions,
-                    directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
-                };
+                try {
+                    // getUserRoles and getUserDirectPermissions are independent, so fetch them in parallel
+                    const [roles, directPermissions, permissions] = await Promise.all([
+                        userQueries.getUserRoles(user.id),
+                        userQueries.getUserDirectPermissions(user.id),
+                        userQueries.getUserPermissions(user.id),
+                    ]);
+                    return {
+                        ...user,
+                        roles: (roles || []).map(r => r?.role).filter(Boolean),
+                        permissions: permissions || [],
+                        directPermissions: (directPermissions || []).map(p => p?.permission).filter(Boolean),
+                    };
+                } catch (userError) {
+                    console.error(`Error fetching data for user ${user.id}:`, userError);
+                    // Return user with empty arrays if there's an error fetching their roles/permissions
+                    return {
+                        ...user,
+                        roles: [],
+                        permissions: [],
+                        directPermissions: [],
+                    };
+                }
             })
         );
 
-        return NextResponse.json(usersWithPermissions);
+        return createSuccessResponse(usersWithPermissions);
     } catch (error: any) {
         if (error.message === 'Unauthorized') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return createErrorResponse(ERRORS.UNAUTHORIZED);
         }
         if (error.message === 'Forbidden') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return createErrorResponse(ERRORS.FORBIDDEN);
         }
         console.error('List users API error:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
+        return createErrorResponse(
+            ERRORS.INTERNAL_SERVER_ERROR,
+            undefined,
+            error instanceof Error ? { message: error.message, stack: error.stack } : error
         );
     }
 }
@@ -55,19 +68,16 @@ export async function POST(request: NextRequest) {
         const { email, name, password } = body;
 
         if (!email || !name || !password) {
-            return NextResponse.json(
-                { error: 'Email, name, and password are required' },
-                { status: 400 }
+            return createErrorResponse(
+                ERRORS.MISSING_REQUIRED_FIELDS,
+                'Email, name, and password are required'
             );
         }
 
         // Check if user already exists
         const existingUser = await userQueries.getUserByEmail(email);
         if (existingUser) {
-            return NextResponse.json(
-                { error: 'User with this email already exists' },
-                { status: 409 }
-            );
+            return createErrorResponse(ERRORS.USER_ALREADY_EXISTS);
         }
 
         // Hash the password before storing
@@ -80,10 +90,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (!newUser) {
-            return NextResponse.json(
-                { error: 'Failed to create user' },
-                { status: 500 }
-            );
+            return createErrorResponse(ERRORS.FAILED_TO_CREATE_USER);
         }
 
         // Log user creation activity
@@ -97,18 +104,19 @@ export async function POST(request: NextRequest) {
             userId: currentUser?.id ?? null,
         });
 
-        return NextResponse.json(newUser, { status: 201 });
+        return createSuccessResponse(newUser, { status: 201 });
     } catch (error: any) {
         if (error.message === 'Unauthorized') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return createErrorResponse(ERRORS.UNAUTHORIZED);
         }
         if (error.message === 'Forbidden') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return createErrorResponse(ERRORS.FORBIDDEN);
         }
         console.error('Create user API error:', error);
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
+        return createErrorResponse(
+            ERRORS.INTERNAL_SERVER_ERROR,
+            undefined,
+            error instanceof Error ? { message: error.message, stack: error.stack } : error
         );
     }
 }

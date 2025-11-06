@@ -55,17 +55,7 @@ export function getStorageDriverByType(type: 'local' | 's3' | 'r2'): StorageDriv
   }
 }
 
-/**
- * Reset the storage driver instance (useful for testing)
- */
-export function resetStorageDriver(): void {
-  storageDriverInstance = null;
-}
-
 // Re-export types and utilities
 export * from './types';
 export * from './config';
-export { LocalStorageDriver } from './drivers/local';
-export { S3StorageDriver } from './drivers/s3';
-export { R2StorageDriver } from './drivers/r2';
 

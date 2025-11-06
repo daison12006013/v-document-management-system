@@ -96,16 +96,24 @@ export function UsersPage({ user: currentUser }: UsersPageProps) {
   const fetchUsers = async () => {
     try {
       setIsLoading(true)
-      const data = await usersApi.getAll()
-      setUsers(data)
       setError(null)
+      const data = await usersApi.getAll()
+      setUsers(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error("Error fetching users:", error)
-      if (error instanceof ApiError && error.status === 403) {
-        setError("You don't have permission to view users")
+      if (error instanceof ApiError) {
+        if (error.status === 403) {
+          setError("You don't have permission to view users")
+        } else if (error.status === 401) {
+          setError("You are not authorized. Please log in again.")
+        } else {
+          setError(error.message || "Failed to load users. Please try again later.")
+        }
       } else {
-        setError("Failed to load users")
+        setError("Failed to load users. Please try again later.")
       }
+      // Ensure users is still an array on error
+      setUsers([])
     } finally {
       setIsLoading(false)
     }

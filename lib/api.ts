@@ -27,6 +27,16 @@ async function request<T>(
 
     const data = await response.json()
 
+    // Handle standardized API response format
+    if (data.status === 'error') {
+        throw new ApiError(
+            data.data.message || `Request failed with status ${data.data.code}`,
+            data.data.code,
+            data.data
+        )
+    }
+
+    // Handle legacy format (for backward compatibility)
     if (!response.ok) {
         throw new ApiError(
             data.error || `Request failed with status ${response.status}`,
@@ -35,7 +45,8 @@ async function request<T>(
         )
     }
 
-    return data
+    // Return data from standardized format or legacy format
+    return data.status === 'ok' ? data.data : data
 }
 
 // Auth API
@@ -339,9 +350,9 @@ export const files = {
     /**
      * Upload a file
      */
-    async uploadFile(file: File, parentId?: string | null, name?: string): Promise<File> {
+    async uploadFile(file: globalThis.File, parentId?: string | null, name?: string): Promise<File> {
         const formData = new FormData()
-        formData.append('file', file)
+        formData.append('file', file, name || file.name)
         if (parentId !== undefined) {
             formData.append('parentId', parentId || '')
         }
@@ -356,6 +367,16 @@ export const files = {
 
         const data = await response.json()
 
+        // Handle standardized API response format
+        if (data.status === 'error') {
+            throw new ApiError(
+                data.data.message || `Upload failed with status ${data.data.code}`,
+                data.data.code,
+                data.data
+            )
+        }
+
+        // Handle legacy format (for backward compatibility)
         if (!response.ok) {
             throw new ApiError(
                 data.error || `Upload failed with status ${response.status}`,
@@ -364,7 +385,8 @@ export const files = {
             )
         }
 
-        return data
+        // Return data from standardized format or legacy format
+        return data.status === 'ok' ? data.data : data
     },
 
     /**

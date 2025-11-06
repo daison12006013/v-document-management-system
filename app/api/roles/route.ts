@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import * as rbac from "@/lib/queries/rbac"
 import { requirePermission, requireAnyPermission, getCurrentUser } from "@/lib/auth"
 import { logActivity } from "@/lib/activities"
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses'
 
 // GET /api/roles - List all roles
 // Users with roles:read OR users:write can list roles
@@ -24,18 +25,19 @@ export async function GET() {
       })
     )
 
-    return NextResponse.json(rolesWithPermissions)
+    return createSuccessResponse(rolesWithPermissions)
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return createErrorResponse(ERRORS.UNAUTHORIZED)
     }
     if (error.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return createErrorResponse(ERRORS.FORBIDDEN)
     }
     console.error("Error fetching roles:", error)
-    return NextResponse.json(
-      { error: "Failed to fetch roles" },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     )
   }
 }
@@ -49,19 +51,13 @@ export async function POST(request: NextRequest) {
     const { name, description, permissions } = body
 
     if (!name) {
-      return NextResponse.json(
-        { error: "Role name is required" },
-        { status: 400 }
-      )
+      return createErrorResponse(ERRORS.ROLE_NAME_REQUIRED)
     }
 
     // Check if role already exists
     const existingRole = await rbac.getRoleByName(name)
     if (existingRole) {
-      return NextResponse.json(
-        { error: "Role with this name already exists" },
-        { status: 409 }
-      )
+      return createErrorResponse(ERRORS.ROLE_ALREADY_EXISTS)
     }
 
     // Create the role
@@ -71,10 +67,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!role) {
-      return NextResponse.json(
-        { error: "Failed to create role" },
-        { status: 500 }
-      )
+      return createErrorResponse(ERRORS.FAILED_TO_CREATE_ROLE)
     }
 
     // Add permissions if provided
@@ -96,7 +89,10 @@ export async function POST(request: NextRequest) {
         // If permission validation fails, rollback role creation and return error
         await rbac.deleteRole(role.id)
         if (permError.message?.includes("Invalid permission format")) {
-          return NextResponse.json({ error: permError.message }, { status: 400 })
+          return createErrorResponse(
+            ERRORS.INVALID_PERMISSION_FORMAT,
+            permError.message
+          )
         }
         throw permError
       }
@@ -121,24 +117,28 @@ export async function POST(request: NextRequest) {
       userId: currentUser?.id ?? null,
     });
 
-    return NextResponse.json({
+    return createSuccessResponse({
       ...role,
       permissions: rolePermissions.map(rp => rp.permission),
     })
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return createErrorResponse(ERRORS.UNAUTHORIZED)
     }
     if (error.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return createErrorResponse(ERRORS.FORBIDDEN)
     }
     if (error.message?.includes("Invalid permission format")) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return createErrorResponse(
+        ERRORS.INVALID_PERMISSION_FORMAT,
+        error.message
+      )
     }
     console.error("Error creating role:", error)
-    return NextResponse.json(
-      { error: "Failed to create role" },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     )
   }
 }

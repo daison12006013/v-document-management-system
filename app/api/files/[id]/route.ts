@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission, getCurrentUser } from '@/lib/auth';
 import * as fileQueries from '@/lib/queries/files';
 import { logActivity } from '@/lib/activities';
+import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 
 // GET /api/files/[id] - Get file/folder details
 export async function GET(
@@ -15,24 +16,22 @@ export async function GET(
     const file = await fileQueries.getFile(id);
 
     if (!file) {
-      return NextResponse.json(
-        { error: 'File not found' },
-        { status: 404 }
-      );
+      return createErrorResponse(ERRORS.FILE_NOT_FOUND);
     }
 
-    return NextResponse.json(file);
+    return createSuccessResponse(file);
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return createErrorResponse(ERRORS.UNAUTHORIZED);
     }
     if (error.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return createErrorResponse(ERRORS.FORBIDDEN);
     }
     console.error('Get file API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     );
   }
 }
@@ -51,10 +50,7 @@ export async function PUT(
 
     const existingFile = await fileQueries.getFile(id);
     if (!existingFile) {
-      return NextResponse.json(
-        { error: 'File not found' },
-        { status: 404 }
-      );
+      return createErrorResponse(ERRORS.FILE_NOT_FOUND);
     }
 
     // Normalize parentId
@@ -68,16 +64,10 @@ export async function PUT(
     if (parentId !== undefined && parentId !== null) {
       const parentFile = await fileQueries.getFile(parentId);
       if (!parentFile) {
-        return NextResponse.json(
-          { error: 'Parent folder not found' },
-          { status: 400 }
-        );
+        return createErrorResponse(ERRORS.PARENT_FOLDER_NOT_FOUND);
       }
       if (parentFile.type !== 'folder') {
-        return NextResponse.json(
-          { error: 'Parent must be a folder' },
-          { status: 400 }
-        );
+        return createErrorResponse(ERRORS.PARENT_MUST_BE_FOLDER);
       }
     }
 
@@ -88,10 +78,7 @@ export async function PUT(
     });
 
     if (!updatedFile) {
-      return NextResponse.json(
-        { error: 'Failed to update file' },
-        { status: 500 }
-      );
+      return createErrorResponse(ERRORS.FAILED_TO_UPDATE_FILE);
     }
 
     await logActivity({
@@ -103,18 +90,19 @@ export async function PUT(
       userId: user.id,
     });
 
-    return NextResponse.json(updatedFile);
+    return createSuccessResponse(updatedFile);
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return createErrorResponse(ERRORS.UNAUTHORIZED);
     }
     if (error.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return createErrorResponse(ERRORS.FORBIDDEN);
     }
     console.error('Update file API error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      error.message || undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     );
   }
 }
@@ -132,10 +120,7 @@ export async function DELETE(
     // Check if file exists
     const file = await fileQueries.getFile(id);
     if (!file) {
-      return NextResponse.json(
-        { error: 'File not found' },
-        { status: 404 }
-      );
+      return createErrorResponse(ERRORS.FILE_NOT_FOUND);
     }
 
     // Soft delete - recursively deletes children if folder
@@ -170,18 +155,19 @@ export async function DELETE(
       userId: user.id,
     });
 
-    return NextResponse.json({ success: true });
+    return createSuccessResponse({ success: true });
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return createErrorResponse(ERRORS.UNAUTHORIZED);
     }
     if (error.message === 'Forbidden') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return createErrorResponse(ERRORS.FORBIDDEN);
     }
     console.error('Delete file API error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      ERRORS.INTERNAL_SERVER_ERROR,
+      error.message || undefined,
+      error instanceof Error ? { message: error.message, stack: error.stack } : error
     );
   }
 }

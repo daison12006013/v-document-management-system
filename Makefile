@@ -1,5 +1,5 @@
-.PHONY: help install dev build start lint check-unused \
-	db-start db-stop db-status db-push db-migrate db-generate db-seed db-clean db-wipe db-reset db-studio \
+.PHONY: help install dev build start lint check-unused ct \
+	db-start db-stop db-restart db-status db-push db-migrate db-generate db-seed db-clean db-wipe db-reset db-studio \
 	clean setup
 
 # Colors for output
@@ -40,6 +40,11 @@ check-unused: ## Check for unused code and dependencies (knip)
 	@echo "${BLUE}Checking for unused code and dependencies...${NC}"
 	pnpm check-unused
 
+ct: ## Check TypeScript and React types/component errors
+	@echo "${BLUE}Checking TypeScript and React types...${NC}"
+	pnpm exec tsc --noEmit || (echo "${RED}✗ Type checking failed${NC}" && exit 1)
+	@echo "${GREEN}✓ Type checking passed${NC}"
+
 ## Database - Basic Operations
 db-start: ## Start MySQL database container
 	@echo "${BLUE}Starting MySQL database...${NC}"
@@ -60,6 +65,9 @@ db-stop: ## Stop MySQL database container
 	@echo "${BLUE}Stopping MySQL database...${NC}"
 	@docker-compose down
 	@echo "${GREEN}✓ MySQL stopped${NC}"
+
+db-restart: db-stop db-start ## Restart MySQL database container
+	@echo "${GREEN}✓ Database restarted${NC}"
 
 db-status: ## Check MySQL database status
 	@echo "${BLUE}Checking database status...${NC}"

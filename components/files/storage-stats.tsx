@@ -17,6 +17,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatFileSize } from '@/lib/helpers';
 
 interface StorageStats {
   totalUsed: number;
@@ -54,14 +55,6 @@ export function StorageStats({ stats, isLoading = false, className }: StorageSta
   }, []);
 
   if (!mounted) return null;
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
 
   const getUsagePercentage = (): number => {
     if (!stats || stats.totalLimit === 0) return 0;

@@ -3,9 +3,9 @@
  * Reads configuration from environment variables
  */
 
-export type StorageDriverType = 'local' | 's3' | 'r2';
+type StorageDriverType = 'local' | 's3' | 'r2';
 
-export interface StorageConfig {
+interface StorageConfig {
   default: StorageDriverType;
   drivers: {
     local: {
