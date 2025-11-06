@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import * as rbac from "@/lib/queries/rbac"
 import { requireAnyPermission } from "@/lib/auth"
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses'
+import { logger } from '@/lib/logger'
 
 // GET /api/permissions - List all permissions
 // Users with permissions:read OR users:write can list permissions
@@ -21,7 +22,7 @@ export async function GET() {
     if (error.message === 'Forbidden') {
       return createErrorResponse(ERRORS.FORBIDDEN)
     }
-    console.error("Error fetching permissions:", error)
+    logger.error("Error fetching permissions", { error })
     return createErrorResponse(
       ERRORS.INTERNAL_SERVER_ERROR,
       undefined,

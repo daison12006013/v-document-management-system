@@ -12,26 +12,85 @@ export class ApiError extends Error {
     }
 }
 
+/**
+ * Get CSRF token from cookie (browser-side only)
+ */
+function getCsrfTokenFromCookie(): string | null {
+    if (typeof document === 'undefined') {
+        return null
+    }
+
+    const cookies = document.cookie.split(';')
+    for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=')
+        if (name === 'csrf-token') {
+            return decodeURIComponent(value)
+        }
+    }
+    return null
+}
+
+/**
+ * Check if the HTTP method requires CSRF protection
+ */
+function requiresCsrfToken(method: string): boolean {
+    return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase())
+}
+
 // Helper function for making API requests
 async function request<T>(
     url: string,
     options?: RequestInit
 ): Promise<T> {
+    const method = options?.method || 'GET'
+    const headers: HeadersInit = {
+        "Content-Type": "application/json",
+        ...options?.headers,
+    }
+
+    // Add CSRF token header for state-changing methods
+    if (requiresCsrfToken(method)) {
+        const csrfToken = getCsrfTokenFromCookie()
+        if (csrfToken) {
+            (headers as Record<string, string>)['x-csrf-token'] = csrfToken
+        }
+    }
+
     const response = await fetch(url, {
         ...options,
-        headers: {
-            "Content-Type": "application/json",
-            ...options?.headers,
-        },
+        headers,
     })
 
-    const data = await response.json()
+    // Check if response has content before trying to parse JSON
+    const contentType = response.headers.get('content-type')
+    let data: any
+
+    if (contentType && contentType.includes('application/json')) {
+        try {
+            data = await response.json()
+        } catch (err) {
+            // If JSON parsing fails, throw a generic error
+            throw new ApiError(
+                `Invalid response from server (status ${response.status})`,
+                response.status,
+                { originalError: err instanceof Error ? err.message : String(err) }
+            )
+        }
+    } else {
+        // If response is not JSON, create error from status
+        const text = await response.text().catch(() => '')
+        throw new ApiError(
+            text || `Request failed with status ${response.status}`,
+            response.status,
+            { text }
+        )
+    }
 
     // Handle standardized API response format
     if (data.status === 'error') {
         throw new ApiError(
-            data.data.message || `Request failed with status ${data.data.code}`,
-            data.data.code,
+            data.data?.message || `Request failed with status ${data.data?.code || response.status}`,
+            data.data?.code || response.status,
             data.data
         )
     }
@@ -39,7 +98,7 @@ async function request<T>(
     // Handle legacy format (for backward compatibility)
     if (!response.ok) {
         throw new ApiError(
-            data.error || `Request failed with status ${response.status}`,
+            data.error || data.message || `Request failed with status ${response.status}`,
             response.status,
             data
         )
@@ -360,8 +419,16 @@ export const files = {
             formData.append('name', name)
         }
 
+        // Get CSRF token for file upload
+        const csrfToken = getCsrfTokenFromCookie()
+        const headers: HeadersInit = {}
+        if (csrfToken) {
+            (headers as Record<string, string>)['x-csrf-token'] = csrfToken
+        }
+
         const response = await fetch("/api/files", {
             method: "POST",
+            headers,
             body: formData,
         })
 

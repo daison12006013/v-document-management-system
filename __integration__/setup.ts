@@ -48,9 +48,11 @@ export async function setup() {
     }
   }
 
-  // Set environment variable for tests
+  // Set environment variables for tests
   process.env.DATABASE_URL = process.env.DATABASE_URL || 'mysql://vistra_user:vistra_password@localhost:3306/vistra_db'
-  process.env.NODE_ENV = 'test'
+  Object.assign(process.env, { NODE_ENV: 'test' })
+  process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-session-secret-at-least-32-characters-long-for-testing'
+  process.env.STORAGE_DRIVER = process.env.STORAGE_DRIVER || 'local'
 
   console.log('✅ Integration test setup complete')
 }

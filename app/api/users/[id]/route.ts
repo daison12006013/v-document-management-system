@@ -4,16 +4,17 @@ import { requirePermission, isSystemAccount, getCurrentUser } from '@/lib/auth';
 import * as userQueries from '@/lib/queries/users';
 import { logActivity } from '@/lib/activities';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
+import { logger } from '@/lib/logger';
+import { withCsrfProtection } from '@/lib/middleware/csrf';
 
 // GET /api/users/[id] - Get a specific user
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params;
     try {
         await requirePermission('users', 'read');
-
-        const { id } = await params;
         const user = await userQueries.getUser(id);
 
         if (!user) {
@@ -27,8 +28,10 @@ export async function GET(
             userQueries.getUserPermissions(user.id),
         ]);
 
+        // Exclude password from response
+        const { password: _, ...userWithoutPassword } = user;
         return createSuccessResponse({
-            ...user,
+            ...userWithoutPassword,
             roles: roles.map(r => r.role).filter(Boolean),
             permissions,
             directPermissions: directPermissions.map(p => p.permission).filter(Boolean),
@@ -40,7 +43,7 @@ export async function GET(
         if (error.message === 'Forbidden') {
             return createErrorResponse(ERRORS.FORBIDDEN);
         }
-        console.error('Get user API error:', error);
+        logger.error('Get user API error', { error, userId: id });
         return createErrorResponse(
             ERRORS.INTERNAL_SERVER_ERROR,
             undefined,
@@ -50,14 +53,13 @@ export async function GET(
 }
 
 // PUT /api/users/[id] - Update a user
-export async function PUT(
+async function putHandler(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params;
     try {
         await requirePermission('users', 'write');
-
-        const { id } = await params;
         const body = await request.json();
         const { email, name } = body;
 
@@ -109,7 +111,7 @@ export async function PUT(
         if (error.message === 'Forbidden') {
             return createErrorResponse(ERRORS.FORBIDDEN);
         }
-        console.error('Update user API error:', error);
+        logger.error('Update user API error', { error, userId: id });
         return createErrorResponse(
             ERRORS.INTERNAL_SERVER_ERROR,
             undefined,
@@ -118,15 +120,16 @@ export async function PUT(
     }
 }
 
+export const PUT = withCsrfProtection(putHandler);
+
 // DELETE /api/users/[id] - Delete a user
-export async function DELETE(
+async function deleteHandler(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params;
     try {
         await requirePermission('users', 'delete');
-
-        const { id } = await params;
 
         // Check if user exists
         const existingUser = await userQueries.getUser(id);
@@ -163,7 +166,7 @@ export async function DELETE(
         if (error.message === 'Forbidden') {
             return createErrorResponse(ERRORS.FORBIDDEN);
         }
-        console.error('Delete user API error:', error);
+        logger.error('Delete user API error', { error, userId: id });
         return createErrorResponse(
             ERRORS.INTERNAL_SERVER_ERROR,
             undefined,
@@ -171,3 +174,5 @@ export async function DELETE(
         );
     }
 }
+
+export const DELETE = withCsrfProtection(deleteHandler);

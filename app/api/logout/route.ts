@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { getCurrentUser } from '@/lib/auth';
 import { logActivity } from '@/lib/activities';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
+import { clearSessionCookie } from '@/lib/auth/session';
+import { logger } from '@/lib/logger';
+import { withCsrfProtection } from '@/lib/middleware/csrf';
 
-export async function POST() {
+async function postHandler() {
   try {
-    const cookieStore = await cookies();
-
     // Get current user before clearing session
     let currentUser = null;
     try {
@@ -18,9 +18,8 @@ export async function POST() {
 
     const response = createSuccessResponse({ success: true });
 
-    // Clear the session cookie
-    cookieStore.delete('vistra_session');
-    response.cookies.delete('vistra_session');
+    // Clear the session cookie using proper method
+    clearSessionCookie(response);
 
     // Log logout activity if user was authenticated
     if (currentUser) {
@@ -32,11 +31,12 @@ export async function POST() {
         metadata: { email: currentUser.email, name: currentUser.name },
         userId: currentUser.id,
       });
+      logger.info('User logged out', { userId: currentUser.id, email: currentUser.email });
     }
 
     return response;
   } catch (error) {
-    console.error('Logout error:', error);
+    logger.error('Logout error', { error });
     return createErrorResponse(
       ERRORS.INTERNAL_SERVER_ERROR,
       undefined,
@@ -44,4 +44,6 @@ export async function POST() {
     );
   }
 }
+
+export const POST = withCsrfProtection(postHandler);
 

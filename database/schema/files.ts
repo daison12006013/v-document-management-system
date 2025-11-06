@@ -1,4 +1,4 @@
-import { mysqlTable, varchar, text, timestamp, char, bigint, mysqlEnum, json } from 'drizzle-orm/mysql-core';
+import { mysqlTable, varchar, text, timestamp, char, bigint, mysqlEnum, json, index } from 'drizzle-orm/mysql-core';
 import { sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 
@@ -24,8 +24,14 @@ export const files = mysqlTable('files', {
   createdAt: timestamp('created_at', { fsp: 6 }).default(sql`CURRENT_TIMESTAMP(6)`).notNull(),
   updatedAt: timestamp('updated_at', { fsp: 6 }).default(sql`CURRENT_TIMESTAMP(6)`).notNull(),
   deletedAt: timestamp('deleted_at', { fsp: 6 }),
-});
-// Note: Indexes will be created via migrations for better compatibility
+}, (table) => ({
+  parentIdIdx: index('parent_id_idx').on(table.parentId),
+  createdByIdx: index('created_by_idx').on(table.createdBy),
+  typeIdx: index('type_idx').on(table.type),
+  deletedAtIdx: index('deleted_at_idx').on(table.deletedAt),
+  // Composite index for common query pattern: find files by parent and filter non-deleted
+  parentDeletedIdx: index('parent_deleted_idx').on(table.parentId, table.deletedAt),
+}));
 
 // File shares table for future sharing functionality
 export const fileShares = mysqlTable('file_shares', {
@@ -36,6 +42,9 @@ export const fileShares = mysqlTable('file_shares', {
   permissions: mysqlEnum('permissions', ['read', 'write', 'delete']).notNull(),
   expiresAt: timestamp('expires_at', { fsp: 6 }),
   createdAt: timestamp('created_at', { fsp: 6 }).default(sql`CURRENT_TIMESTAMP(6)`).notNull(),
-});
-// Note: Indexes will be created via migrations for better compatibility
+}, (table) => ({
+  fileIdIdx: index('file_id_idx').on(table.fileId),
+  sharedWithIdx: index('shared_with_idx').on(table.sharedWith),
+  sharedByIdx: index('shared_by_idx').on(table.sharedBy),
+}));
 

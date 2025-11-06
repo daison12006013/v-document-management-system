@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import * as rbacQueries from '@/lib/queries/rbac';
 import * as dashboardQueries from '@/lib/queries/dashboard';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
     try {
@@ -89,7 +90,7 @@ export async function GET() {
 
         return createSuccessResponse(result);
     } catch (error) {
-        console.error('Dashboard API error:', error);
+        logger.error('Dashboard API error', { error });
         return createErrorResponse(
             ERRORS.INTERNAL_SERVER_ERROR,
             undefined,

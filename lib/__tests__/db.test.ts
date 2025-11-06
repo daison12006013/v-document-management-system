@@ -20,14 +20,21 @@ describe('lib/db', () => {
     })
 
     it('should require DATABASE_URL environment variable', async () => {
+      const originalDbUrl = process.env.DATABASE_URL
+      const originalSessionSecret = process.env.SESSION_SECRET
       delete process.env.DATABASE_URL
+      delete process.env.SESSION_SECRET
 
       // Re-import to trigger the error
       await expect(async () => {
         const dbModule = await import('../db')
         // Accessing db will trigger getPool() which checks DATABASE_URL
         await dbModule.getClient()
-      }).rejects.toThrow('DATABASE_URL environment variable is not set')
+      }).rejects.toThrow('DATABASE_URL')
+
+      // Restore env vars
+      if (originalDbUrl) process.env.DATABASE_URL = originalDbUrl
+      if (originalSessionSecret) process.env.SESSION_SECRET = originalSessionSecret
     })
 
     it('should parse DATABASE_URL correctly', async () => {

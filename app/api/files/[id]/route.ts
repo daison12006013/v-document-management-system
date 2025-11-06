@@ -3,16 +3,17 @@ import { requirePermission, getCurrentUser } from '@/lib/auth';
 import * as fileQueries from '@/lib/queries/files';
 import { logActivity } from '@/lib/activities';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
+import { logger } from '@/lib/logger';
+import { withCsrfProtection } from '@/lib/middleware/csrf';
 
 // GET /api/files/[id] - Get file/folder details
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     await requirePermission('files', 'read');
-
-    const { id } = await params;
     const file = await fileQueries.getFile(id);
 
     if (!file) {
@@ -27,7 +28,7 @@ export async function GET(
     if (error.message === 'Forbidden') {
       return createErrorResponse(ERRORS.FORBIDDEN);
     }
-    console.error('Get file API error:', error);
+    logger.error('Get file API error', { error, fileId: id });
     return createErrorResponse(
       ERRORS.INTERNAL_SERVER_ERROR,
       undefined,
@@ -37,14 +38,13 @@ export async function GET(
 }
 
 // PUT /api/files/[id] - Update file/folder metadata
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+async function putHandler(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const user = await requirePermission('files', 'update');
-
-    const { id } = await params;
     const body = await request.json();
     const { name, parentId: parentIdRaw, metadata } = body;
 
@@ -98,7 +98,7 @@ export async function PUT(
     if (error.message === 'Forbidden') {
       return createErrorResponse(ERRORS.FORBIDDEN);
     }
-    console.error('Update file API error:', error);
+    logger.error('Update file API error', { error, fileId: id });
     return createErrorResponse(
       ERRORS.INTERNAL_SERVER_ERROR,
       error.message || undefined,
@@ -107,15 +107,16 @@ export async function PUT(
   }
 }
 
+export const PUT = withCsrfProtection(putHandler);
+
 // DELETE /api/files/[id] - Delete file/folder
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+async function deleteHandler(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const user = await requirePermission('files', 'delete');
-
-    const { id } = await params;
 
     // Check if file exists
     const file = await fileQueries.getFile(id);
@@ -136,7 +137,11 @@ export async function DELETE(
             const storage = getStorageDriverByType(fileInfo.storageDriver as 'local' | 's3' | 'r2');
             await storage.delete(fileInfo.storagePath);
           } catch (storageError) {
-            console.error(`Failed to delete file from storage (${fileInfo.storageDriver}):`, storageError);
+            logger.error(`Failed to delete file from storage`, {
+              error: storageError,
+              storageDriver: fileInfo.storageDriver,
+              storagePath: fileInfo.storagePath
+            });
             // Continue even if storage delete fails (soft delete already done)
           }
         })
@@ -163,7 +168,7 @@ export async function DELETE(
     if (error.message === 'Forbidden') {
       return createErrorResponse(ERRORS.FORBIDDEN);
     }
-    console.error('Delete file API error:', error);
+    logger.error('Delete file API error', { error, fileId: id });
     return createErrorResponse(
       ERRORS.INTERNAL_SERVER_ERROR,
       error.message || undefined,
@@ -171,4 +176,6 @@ export async function DELETE(
     );
   }
 }
+
+export const DELETE = withCsrfProtection(deleteHandler);
 

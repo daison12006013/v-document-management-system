@@ -5,6 +5,8 @@ import * as fileQueries from '@/lib/queries/files';
 import { logActivity } from '@/lib/activities';
 import { getStorageDriver } from '@/lib/storage';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
+import { logger } from '@/lib/logger';
+import { withCsrfProtection } from '@/lib/middleware/csrf';
 
 // GET /api/files - List files and folders
 export async function GET(request: NextRequest) {
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
     if (error.message === 'Forbidden') {
       return createErrorResponse(ERRORS.FORBIDDEN);
     }
-    console.error('List files API error:', error);
+    logger.error('List files API error', { error });
     return createErrorResponse(
       ERRORS.INTERNAL_SERVER_ERROR,
       undefined,
@@ -42,7 +44,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/files - Upload file or create folder
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   try {
     const user = await requirePermission('files', 'create');
 
@@ -142,7 +144,7 @@ export async function POST(request: NextRequest) {
       try {
         await storage.delete(storagePath);
       } catch (deleteError) {
-        console.error('Failed to cleanup uploaded file:', deleteError);
+        logger.error('Failed to cleanup uploaded file', { error: deleteError, storagePath });
       }
       return createErrorResponse(ERRORS.FAILED_TO_CREATE_FILE);
     }
@@ -168,7 +170,7 @@ export async function POST(request: NextRequest) {
     if (error.message === 'Forbidden') {
       return createErrorResponse(ERRORS.FORBIDDEN);
     }
-    console.error('Create file API error:', error);
+    logger.error('Create file API error', { error });
     return createErrorResponse(
       ERRORS.INTERNAL_SERVER_ERROR,
       error.message || undefined,
@@ -176,4 +178,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withCsrfProtection(postHandler);
 

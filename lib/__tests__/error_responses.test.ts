@@ -83,7 +83,7 @@ describe('lib/error_responses', () => {
     })
 
     it('should include trace in debug mode', () => {
-      process.env.NODE_ENV = 'development'
+      Object.assign(process.env, { NODE_ENV: 'development' })
       process.env.APP_DEBUG = 'true'
 
       const trace = { stack: 'error stack' }
@@ -93,7 +93,7 @@ describe('lib/error_responses', () => {
     })
 
     it('should not include trace in production', () => {
-      process.env.NODE_ENV = 'production'
+      Object.assign(process.env, { NODE_ENV: 'production' })
       process.env.APP_DEBUG = 'false'
 
       const trace = { stack: 'error stack' }
@@ -114,7 +114,7 @@ describe('lib/error_responses', () => {
     })
 
     it('should include trace in debug mode', () => {
-      process.env.NODE_ENV = 'development'
+      Object.assign(process.env, { NODE_ENV: 'development' })
 
       const trace = { details: 'error details' }
       const response = customErrorResponse('CUSTOM_ERROR', 400, 'Message', trace)

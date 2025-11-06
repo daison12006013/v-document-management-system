@@ -29,6 +29,24 @@ interface UppyConfig {
 }
 
 /**
+ * Get CSRF token from cookie (browser-side only)
+ */
+function getCsrfTokenFromCookie(): string | null {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    if (name === 'csrf-token') {
+      return decodeURIComponent(value);
+    }
+  }
+  return null;
+}
+
+/**
  * Get upload limits from environment or defaults
  */
 export function getUploadLimits() {
@@ -84,6 +102,15 @@ export function createUppyInstance(config: UppyConfig = {}) {
     fieldName: 'file',
     formData: true,
     bundle: false,
+    // Add CSRF token header to all requests
+    headers: (file: any) => {
+      const csrfToken = getCsrfTokenFromCookie();
+      const headers: Record<string, string> = {};
+      if (csrfToken) {
+        headers['x-csrf-token'] = csrfToken;
+      }
+      return headers;
+    },
     getResponseData(xhr: XMLHttpRequest) {
       // In Uppy v5, getResponseData is called for successful responses
       // It receives the XMLHttpRequest object directly
@@ -119,15 +146,22 @@ export function createUppyInstance(config: UppyConfig = {}) {
     });
   });
 
-  // Intercept XHR to add parentId to form data
+  // Intercept XHR to add parentId to form data and CSRF token header
   uppy.on('upload', () => {
     const xhrUpload = uppy.getPlugin('XHRUpload');
     if (xhrUpload) {
-      // Access the internal XHR and modify form data
+      // Access the internal XHR and modify form data and headers
       const originalCreateXHR = (xhrUpload as any).createXHR;
       if (originalCreateXHR) {
         (xhrUpload as any).createXHR = function(...args: any[]) {
           const xhr = originalCreateXHR.apply(this, args);
+
+          // Add CSRF token header
+          const csrfToken = getCsrfTokenFromCookie();
+          if (csrfToken) {
+            xhr.setRequestHeader('x-csrf-token', csrfToken);
+          }
+
           const originalSend = xhr.send;
           xhr.send = function(data: any) {
             if (data instanceof FormData) {

@@ -23,10 +23,14 @@ export function AdminLayout({ user, children }: AdminLayoutProps) {
     setIsLoggingOut(true)
     try {
       await auth.logout()
-      router.refresh()
+      // Wait a moment for cookie to be cleared, then do full page navigation
+      // This ensures cookies are cleared when the page loads
+      // Increased timeout to ensure cookie clearing is processed
+      await new Promise(resolve => setTimeout(resolve, 500))
+      // Force a full page reload to ensure session cookie is cleared
+      window.location.href = "/"
     } catch (error) {
       console.error("Logout error:", error)
-    } finally {
       setIsLoggingOut(false)
     }
   }

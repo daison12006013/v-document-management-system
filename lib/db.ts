@@ -1,40 +1,38 @@
 import mysql from 'mysql2/promise';
 import { drizzle } from 'drizzle-orm/mysql2';
 import * as schema from '@/database/schema';
+import { env } from '@/lib/config/env';
+import { logger } from '@/lib/logger';
 
 // Database connection pool
 let pool: mysql.Pool | null = null;
 
 function getPool(): mysql.Pool {
   if (!pool) {
-    const databaseUrl = process.env.DATABASE_URL;
-
-    if (!databaseUrl) {
-      throw new Error('DATABASE_URL environment variable is not set');
-    }
-
     // Parse MySQL connection string
     // Format: mysql://user:password@host:port/database
-    const url = new URL(databaseUrl);
+    const url = new URL(env.DATABASE_URL);
 
-    pool = mysql.createPool({
+    const poolConfig = {
       host: url.hostname,
       port: parseInt(url.port) || 3306,
       user: url.username,
       password: url.password,
       database: url.pathname.slice(1), // Remove leading '/'
-      // Connection pool configuration
+      // Connection pool configuration with environment-based values
       waitForConnections: true,
-      connectionLimit: 20, // Increased to handle concurrent requests
-      queueLimit: 0,
+      connectionLimit: env.DB_POOL_SIZE || 20,
+      queueLimit: env.DB_QUEUE_LIMIT || 100,
       enableKeepAlive: true,
       keepAliveInitialDelay: 0,
-    });
+    };
+
+    pool = mysql.createPool(poolConfig);
 
     // Handle pool errors
     pool.on('connection', (connection) => {
       connection.on('error', (err) => {
-        console.error('MySQL connection error:', err);
+        logger.error('MySQL connection error', { error: err });
       });
     });
   }
@@ -54,7 +52,7 @@ function getDb() {
       schema,
       mode: 'default',
       // Ensure proper connection handling
-      logger: process.env.NODE_ENV === 'development',
+      logger: env.NODE_ENV === 'development',
     });
   }
   return dbInstance;

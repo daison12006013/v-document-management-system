@@ -5,16 +5,16 @@ import { getStorageDriver } from '@/lib/storage';
 import { LocalStorageDriver } from '@/lib/storage/drivers/local';
 import { getSignedUrlConfig } from '@/lib/storage/config';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
+import { logger } from '@/lib/logger';
 
 // GET /api/files/[id]/download - Get signed download URL
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     await requirePermission('files', 'download');
-
-    const { id } = await params;
     const file = await fileQueries.getFile(id);
 
     if (!file) {
@@ -49,7 +49,7 @@ export async function GET(
     if (error.message === 'Forbidden') {
       return createErrorResponse(ERRORS.FORBIDDEN);
     }
-    console.error('Download file API error:', error);
+    logger.error('Download file API error', { error, fileId: id });
     return createErrorResponse(
       ERRORS.INTERNAL_SERVER_ERROR,
       undefined,

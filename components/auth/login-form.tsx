@@ -20,20 +20,24 @@ export function LoginForm() {
     setError(null)
 
     try {
-      await auth.login(email, password)
-      // Success - redirect or update UI
-      // For now, we'll reload the page to reflect the authenticated state
-      router.refresh()
-      // In a real app, you might redirect to a dashboard
-      // router.push("/dashboard")
+      const result = await auth.login(email, password)
+      // Success - wait a moment for cookies to be set, then do full page navigation
+      // This ensures cookies are available when the page loads
+      await new Promise(resolve => setTimeout(resolve, 300))
+      // Force a full page reload to ensure session cookie is read
+      window.location.href = "/"
     } catch (err) {
+      console.error('Login error:', err)
+      setIsLoading(false)
       if (err instanceof ApiError) {
-        setError(err.message || "Login failed")
+        // Extract error message from API error
+        const errorMessage = err.message || err.data?.message || "Login failed"
+        setError(errorMessage)
+      } else if (err instanceof Error) {
+        setError(err.message || "An unexpected error occurred. Please try again.")
       } else {
         setError("An unexpected error occurred. Please try again.")
       }
-    } finally {
-      setIsLoading(false)
     }
   }
 

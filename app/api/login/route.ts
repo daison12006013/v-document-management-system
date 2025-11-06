@@ -3,33 +3,33 @@ import bcrypt from 'bcryptjs';
 import * as userQueries from '@/lib/queries/users';
 import { logActivity } from '@/lib/activities';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
+import { validateRequest } from '@/lib/validations/middleware';
+import { loginSchema } from '@/lib/validations/schemas';
+import { setSessionCookie } from '@/lib/auth/session';
+import { logger } from '@/lib/logger';
+import { ValidationError } from '@/lib/errors';
+import { addCsrfTokenToResponse } from '@/lib/middleware/csrf';
 
-export async function POST(request: NextRequest) {
+async function loginHandler(request: NextRequest): Promise<NextResponse> {
     try {
-        const body = await request.json();
-        const { email, password } = body;
-
-        // Validate input
-        if (!email || !password) {
-            return createErrorResponse(
-                ERRORS.MISSING_REQUIRED_FIELDS,
-                'Email and password are required'
-            );
-        }
+        // Validate request body using Zod schema
+        const { email, password } = await validateRequest(request, loginSchema);
 
         // Get user from database
         const user = await userQueries.getUserByEmail(email);
 
         if (!user) {
             // Don't reveal if user exists or not (security best practice)
-            return createErrorResponse(ERRORS.INVALID_CREDENTIALS);
+            const errorResponse = createErrorResponse(ERRORS.INVALID_CREDENTIALS);
+            return await addCsrfTokenToResponse(errorResponse);
         }
 
         // Verify password
         const isValidPassword = await bcrypt.compare(password, user.password);
 
         if (!isValidPassword) {
-            return createErrorResponse(ERRORS.INVALID_CREDENTIALS);
+            const errorResponse = createErrorResponse(ERRORS.INVALID_CREDENTIALS);
+            return await addCsrfTokenToResponse(errorResponse);
         }
 
         // Create response with user data (excluding password)
@@ -44,22 +44,12 @@ export async function POST(request: NextRequest) {
             { status: 200 }
         );
 
-        // Set session cookie (in production, use secure, httpOnly cookies)
-        // Store user information as JSON in the cookie
-        const sessionData = {
-            id: user.id,
+        // Set secure JWT session cookie
+        setSessionCookie(response, {
+            userId: user.id,
             email: user.email,
             name: user.name,
             createdAt: new Date().toISOString(),
-        };
-
-        const isProduction = process.env.NODE_ENV === 'production';
-        response.cookies.set('vistra_session', JSON.stringify(sessionData), {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 7, // 7 days
-            path: '/',
         });
 
         // Log login activity
@@ -72,13 +62,27 @@ export async function POST(request: NextRequest) {
             userId: user.id,
         });
 
-        return response;
+        logger.info('User logged in successfully', { userId: user.id, email: user.email });
+
+        // Always add CSRF token to response (initializes if missing)
+        return await addCsrfTokenToResponse(response);
     } catch (error) {
-        console.error('Login error:', error);
-        return createErrorResponse(
-            ERRORS.INTERNAL_SERVER_ERROR,
-            undefined,
-            error instanceof Error ? { message: error.message, stack: error.stack } : error
-        );
+        let errorResponse: NextResponse;
+
+        if (error instanceof ValidationError) {
+            errorResponse = createErrorResponse(ERRORS.VALIDATION_ERROR, error.message, error.details);
+        } else {
+            logger.error('Login error', { error });
+            errorResponse = createErrorResponse(
+                ERRORS.INTERNAL_SERVER_ERROR,
+                undefined,
+                error instanceof Error ? { message: error.message, stack: error.stack } : error
+            );
+        }
+
+        // Always add CSRF token to error responses too (for retry scenarios)
+        return await addCsrfTokenToResponse(errorResponse);
     }
 }
+
+export const POST = loginHandler;

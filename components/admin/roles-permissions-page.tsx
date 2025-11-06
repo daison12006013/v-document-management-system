@@ -15,27 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-
-interface User {
-  id: string
-  email: string
-  name: string
-}
-
-interface Permission {
-  id: string
-  name: string
-  resource: string
-  action: string
-  description: string | null
-}
-
-interface Role {
-  id: string
-  name: string
-  description: string | null
-  permissions: Permission[]
-}
+import { api, ApiError } from "@/lib/api"
+import type { User, Role, Permission } from "@/lib/types"
 
 export function RolesPermissionsPage({ user }: { user: User }) {
   const { toast } = useToast()
@@ -43,8 +24,11 @@ export function RolesPermissionsPage({ user }: { user: User }) {
   const [allPermissions, setAllPermissions] = useState<Permission[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
+  const [deletingRole, setDeletingRole] = useState<Role | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -61,21 +45,23 @@ export function RolesPermissionsPage({ user }: { user: User }) {
   const fetchRoles = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch("/api/roles")
-      const result = await response.json()
-
-      // Handle standardized API response format { status: 'ok' | 'error', data: {...} }
-      if (response.ok && result.status === 'ok') {
-        const rolesData = result.data
-        setRoles(Array.isArray(rolesData) ? rolesData : [])
-      } else {
-        // On error, ensure roles is still an array
-        console.error("Error fetching roles:", result.status === 'error' ? result.data?.message : 'Unknown error')
-        setRoles([])
-      }
+      const rolesData = await api.roles.getAll()
+      // Ensure permissions array exists for each role
+      const rolesWithPermissions = rolesData.map(role => ({
+        ...role,
+        permissions: role.permissions || []
+      }))
+      setRoles(Array.isArray(rolesWithPermissions) ? rolesWithPermissions : [])
     } catch (error) {
       console.error("Error fetching roles:", error)
       setRoles([])
+      if (error instanceof ApiError) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        })
+      }
     } finally {
       setIsLoading(false)
     }
@@ -83,20 +69,18 @@ export function RolesPermissionsPage({ user }: { user: User }) {
 
   const fetchPermissions = async () => {
     try {
-      const response = await fetch("/api/permissions")
-      const result = await response.json()
-
-      // Handle standardized API response format { status: 'ok' | 'error', data: {...} }
-      if (response.ok && result.status === 'ok') {
-        const permissionsData = result.data
-        setAllPermissions(Array.isArray(permissionsData) ? permissionsData : [])
-      } else {
-        console.error("Error fetching permissions:", result.status === 'error' ? result.data?.message : 'Unknown error')
-        setAllPermissions([])
-      }
+      const permissionsData = await api.permissions.getAll()
+      setAllPermissions(Array.isArray(permissionsData) ? permissionsData : [])
     } catch (error) {
       console.error("Error fetching permissions:", error)
       setAllPermissions([])
+      if (error instanceof ApiError) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        })
+      }
     }
   }
 
@@ -119,48 +103,44 @@ export function RolesPermissionsPage({ user }: { user: User }) {
     setFormData({
       name: role.name,
       description: role.description || "",
-      permissions: role.permissions.map((p) => p.name),
+      permissions: (role.permissions || []).map((p) => p.name),
     })
     setPermissionInput("")
     setError(null)
     setIsDialogOpen(true)
   }
 
-  const handleDeleteRole = async (roleId: string) => {
-    if (!confirm("Are you sure you want to delete this role?")) {
-      return
-    }
+  const handleDeleteRole = (role: Role) => {
+    setDeletingRole(role)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDelete = async () => {
+    if (!deletingRole) return
+
+    setIsSubmitting(true)
+    setError(null)
 
     try {
-      const response = await fetch(`/api/roles/${roleId}`, {
-        method: "DELETE",
+      await api.roles.delete(deletingRole.id)
+      setIsDeleteDialogOpen(false)
+      setDeletingRole(null)
+      fetchRoles()
+      toast({
+        title: "Role deleted",
+        description: `Successfully deleted role "${deletingRole.name}"`,
       })
-      const responseData = await response.json()
-
-      // Handle standardized API response format { status: 'ok' | 'error', data: {...} }
-      if (response.ok && responseData.status !== 'error') {
-        fetchRoles()
-        toast({
-          title: "Role deleted",
-          description: "Successfully deleted role",
-        })
-      } else {
-        const errorMessage = responseData.status === 'error'
-          ? responseData.data?.message || "Failed to delete role"
-          : responseData.error || "Failed to delete role"
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive",
-        })
-      }
     } catch (error) {
       console.error("Error deleting role:", error)
+      const errorMessage = error instanceof ApiError ? error.message : "Failed to delete role"
+      setError(errorMessage)
       toast({
         title: "Error",
-        description: "Failed to delete role",
+        description: errorMessage,
         variant: "destructive",
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -224,49 +204,31 @@ export function RolesPermissionsPage({ user }: { user: User }) {
     setError(null)
 
     try {
-      const url = isEditing && editingRole
-        ? `/api/roles/${editingRole.id}`
-        : "/api/roles"
-
-      const method = isEditing ? "PUT" : "POST"
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      if (isEditing && editingRole) {
+        await api.roles.update(editingRole.id, {
           name: formData.name.trim(),
           description: formData.description.trim() || null,
           permissions: formData.permissions,
-        }),
-      })
-      const responseData = await response.json()
-
-      // Handle standardized API response format { status: 'ok' | 'error', data: {...} }
-      if (response.ok && responseData.status !== 'error') {
-        setIsDialogOpen(false)
-        fetchRoles()
-        toast({
-          title: isEditing ? "Role updated" : "Role created",
-          description: isEditing
-            ? `Successfully updated role "${formData.name.trim()}"`
-            : `Successfully created role "${formData.name.trim()}"`,
         })
       } else {
-        const errorMessage = responseData.status === 'error'
-          ? responseData.data?.message || "Failed to save role"
-          : responseData.error || "Failed to save role"
-        setError(errorMessage)
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive",
+        await api.roles.create({
+          name: formData.name.trim(),
+          description: formData.description.trim() || null,
+          permissions: formData.permissions,
         })
       }
+
+      setIsDialogOpen(false)
+      fetchRoles()
+      toast({
+        title: isEditing ? "Role updated" : "Role created",
+        description: isEditing
+          ? `Successfully updated role "${formData.name.trim()}"`
+          : `Successfully created role "${formData.name.trim()}"`,
+      })
     } catch (error) {
       console.error("Error saving role:", error)
-      const errorMessage = "Failed to save role"
+      const errorMessage = error instanceof ApiError ? error.message : "Failed to save role"
       setError(errorMessage)
       toast({
         title: "Error",
@@ -318,7 +280,7 @@ export function RolesPermissionsPage({ user }: { user: User }) {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDeleteRole(role.id)}
+                      onClick={() => handleDeleteRole(role)}
                     >
                       Delete
                     </Button>
@@ -328,7 +290,7 @@ export function RolesPermissionsPage({ user }: { user: User }) {
               <CardContent>
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-foreground">Permissions:</h4>
-                  {role.permissions.length === 0 ? (
+                  {(!role.permissions || role.permissions.length === 0) ? (
                     <p className="text-sm text-muted-foreground">No permissions assigned</p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
@@ -353,6 +315,40 @@ export function RolesPermissionsPage({ user }: { user: User }) {
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Role</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {deletingRole?.name}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {error && <div className="text-sm text-destructive">{error}</div>}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsDeleteDialogOpen(false)
+                setDeletingRole(null)
+                setError(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create/Edit Role Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

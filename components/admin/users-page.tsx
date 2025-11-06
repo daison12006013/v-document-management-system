@@ -174,6 +174,24 @@ export function UsersPage({ user: currentUser }: UsersPageProps) {
       if (error instanceof ApiError) {
         if (error.status === 403) {
           errorMessage = editingUser ? "You don't have permission to update users" : "You don't have permission to create users"
+        } else if (error.status === 400) {
+          // For validation errors, use the error message which now contains formatted validation messages
+          // Fallback to extracting from trace if message is still generic
+          if (error.message && error.message !== "Validation failed" && error.message !== "Validation error") {
+            errorMessage = error.message;
+          } else if (error.data?.trace && Array.isArray(error.data.trace)) {
+            // Extract validation error messages from trace/details as fallback
+            const validationMessages = error.data.trace
+              .map((detail: any) => detail.message)
+              .filter(Boolean);
+            if (validationMessages.length > 0) {
+              errorMessage = validationMessages.join(', ');
+            } else {
+              errorMessage = error.message || "Validation failed";
+            }
+          } else {
+            errorMessage = error.message || "Validation failed";
+          }
         } else {
           errorMessage = error.message || "Failed to save user"
         }

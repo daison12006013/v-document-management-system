@@ -5,16 +5,21 @@ test.describe('Files Management', () => {
     // Login as admin
     await page.goto('/')
     await page.waitForLoadState('networkidle')
-    await page.waitForSelector('form', { timeout: 10000 })
 
-    await page.getByLabel(/email/i).fill('admin@vistra.com')
-    await page.getByLabel(/password/i).fill('admin123')
-    await page.getByRole('button', { name: /sign in/i }).click()
+    // Check if login form is visible (not logged in)
+    const loginFormVisible = await page.getByLabel(/email/i).isVisible({ timeout: 2000 }).catch(() => false)
 
-    // Wait for login to complete and page to refresh
-    await page.waitForLoadState('networkidle')
-    // Verify we're logged in by checking login form is gone
-    await expect(page.getByLabel(/email/i)).not.toBeVisible({ timeout: 10000 })
+    if (loginFormVisible) {
+      // Need to login
+      await page.getByLabel(/email/i).fill('admin@vistra.com')
+      await page.getByLabel(/password/i).fill('admin123')
+      await page.getByRole('button', { name: /sign in/i }).click()
+
+      // Wait for login to complete - page should reload and show dashboard
+      await page.waitForLoadState('networkidle')
+      // Wait for login form to disappear (indicating successful login)
+      await page.getByLabel(/email/i).waitFor({ state: 'hidden', timeout: 10000 })
+    }
   })
 
   test('should navigate to files page', async ({ page }) => {

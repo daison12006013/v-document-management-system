@@ -3,14 +3,17 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { LocalStorageDriver } from '@/lib/storage/drivers/local';
 import { getSignedUrlConfig } from '@/lib/storage/config';
+import { logger } from '@/lib/logger';
 
 // GET /api/files/serve/[path] - Serve file with token validation
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string }> }
 ) {
+  let filePath: string | undefined;
   try {
-    const { path: filePath } = await params;
+    const resolvedParams = await params;
+    filePath = resolvedParams.path;
     const searchParams = request.nextUrl.searchParams;
     const token = searchParams.get('token');
 
@@ -34,7 +37,7 @@ export async function GET(
     }
 
     // Verify path matches token
-    const decodedPath = decodeURIComponent(filePath);
+    const decodedPath = decodeURIComponent(filePath!);
     if (tokenData.path !== decodedPath) {
       return NextResponse.json(
         { error: 'Path mismatch' },
@@ -145,7 +148,7 @@ export async function GET(
       throw error;
     }
   } catch (error: any) {
-    console.error('Serve file API error:', error);
+    logger.error('Serve file API error', { error, path: filePath });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

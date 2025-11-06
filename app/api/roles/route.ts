@@ -3,6 +3,8 @@ import * as rbac from "@/lib/queries/rbac"
 import { requirePermission, requireAnyPermission, getCurrentUser } from "@/lib/auth"
 import { logActivity } from "@/lib/activities"
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses'
+import { logger } from '@/lib/logger'
+import { withCsrfProtection } from '@/lib/middleware/csrf'
 
 // GET /api/roles - List all roles
 // Users with roles:read OR users:write can list roles
@@ -33,7 +35,7 @@ export async function GET() {
     if (error.message === 'Forbidden') {
       return createErrorResponse(ERRORS.FORBIDDEN)
     }
-    console.error("Error fetching roles:", error)
+    logger.error("Error fetching roles", { error })
     return createErrorResponse(
       ERRORS.INTERNAL_SERVER_ERROR,
       undefined,
@@ -43,7 +45,7 @@ export async function GET() {
 }
 
 // POST /api/roles - Create a new role
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   try {
     await requirePermission('roles', 'write')
 
@@ -134,7 +136,7 @@ export async function POST(request: NextRequest) {
         error.message
       )
     }
-    console.error("Error creating role:", error)
+    logger.error("Error creating role", { error })
     return createErrorResponse(
       ERRORS.INTERNAL_SERVER_ERROR,
       undefined,
@@ -142,6 +144,8 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export const POST = withCsrfProtection(postHandler);
 
 // Helper function to validate and get or create a permission
 async function validateAndGetOrCreatePermission(permissionName: string) {

@@ -5,7 +5,7 @@
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000'
 
 export interface TestResponse<T = any> {
-  status: number
+  status: 'ok' | 'error'
   data?: T
   error?: {
     alias: string
@@ -23,9 +23,10 @@ export async function authenticatedRequest<T>(
 ): Promise<TestResponse<T>> {
   const { cookies, ...fetchOptions } = options
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...fetchOptions.headers,
+    'x-test-mode': 'true', // Bypass CSRF protection in tests
+    ...(fetchOptions.headers as Record<string, string>),
   }
 
   if (cookies) {
@@ -39,9 +40,19 @@ export async function authenticatedRequest<T>(
 
   const data = await response.json()
 
+  // The API returns { status: 'ok'|'error', data: {...} } or { status: 'error', data: { error details } }
+  // Transform to match TestResponse interface
+  if (data.status === 'error') {
+    return {
+      status: 'error',
+      error: data.data, // error details are in data field
+    }
+  }
+
   return {
-    status: response.status,
-    ...data,
+    status: data.status || 'ok',
+    data: data.data,
+    error: undefined,
   }
 }
 
@@ -49,33 +60,52 @@ export async function authenticatedRequest<T>(
  * Login and get session cookie
  */
 export async function login(email: string, password: string): Promise<{ cookie: string; user: any }> {
-  const response = await authenticatedRequest<{ user: { id: string; email: string; name: string } }>(
-    '/api/login',
-    {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-      cookies: undefined, // No cookie for login
+  const fetchResponse = await fetch(`${BASE_URL}/api/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  })
+
+  const data = await fetchResponse.json()
+
+  if (data.status !== 'ok' || !data.data) {
+    // Error response structure: { status: 'error', data: { alias, code, message } }
+    const errorMessage = data.data?.message || data.data?.alias || 'Unknown error'
+    const errorCode = data.data?.code || 'unknown'
+    throw new Error(`Login failed: ${errorMessage} (code: ${errorCode})`)
+  }
+
+  // Extract Set-Cookie header from response
+  const setCookieHeader = fetchResponse.headers.get('set-cookie')
+  let cookie = ''
+
+  if (setCookieHeader) {
+    // Extract the session cookie value
+    const cookies = setCookieHeader.split(',')
+    for (const cookieStr of cookies) {
+      const trimmed = cookieStr.trim()
+      if (trimmed.startsWith('vistra_session=')) {
+        // Extract just the cookie name and value (before any attributes like ; Path=/)
+        const match = trimmed.match(/vistra_session=([^;]+)/)
+        if (match) {
+          cookie = `vistra_session=${match[1]}`
+          break
+        }
+      }
     }
-  )
-
-  if (response.status !== 'ok' || !response.data) {
-    throw new Error(`Login failed: ${response.error?.message || 'Unknown error'}`)
   }
 
-  // Extract cookie from response (in real scenario, we'd get this from Set-Cookie header)
-  // For Next.js testing, we'll simulate by storing the session data
-  const sessionData = {
-    id: response.data.user.id,
-    email: response.data.user.email,
-    name: response.data.user.name,
+  // If no cookie was found in headers, we can't create a valid session
+  // This would happen in real testing scenarios
+  if (!cookie) {
+    throw new Error('Login successful but no session cookie was returned')
   }
-
-  // Create cookie string
-  const cookie = `vistra_session=${JSON.stringify(sessionData)}`
 
   return {
     cookie,
-    user: response.data.user,
+    user: data.data.user,
   }
 }
 

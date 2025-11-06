@@ -3,6 +3,8 @@ import * as rbac from "@/lib/queries/rbac"
 import { requirePermission, requireAnyPermission, getCurrentUser } from "@/lib/auth"
 import { logActivity } from "@/lib/activities"
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses'
+import { logger } from '@/lib/logger'
+import { withCsrfProtection } from '@/lib/middleware/csrf'
 
 // Helper function to validate and get or create a permission
 async function validateAndGetOrCreatePermission(permissionName: string) {
@@ -37,11 +39,13 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let id: string | undefined;
   try {
     await requirePermission('roles', 'read')
 
-    const { id } = await params;
-    const role = await rbac.getRole(id)
+    const resolvedParams = await params;
+    id = resolvedParams.id;
+    const role = await rbac.getRole(id!)
 
     if (!role) {
       return createErrorResponse(ERRORS.ROLE_NOT_FOUND)
@@ -60,7 +64,7 @@ export async function GET(
     if (error.message === 'Forbidden') {
       return createErrorResponse(ERRORS.FORBIDDEN)
     }
-    console.error("Error fetching role:", error)
+    logger.error("Error fetching role", { error, roleId: id })
     return createErrorResponse(
       ERRORS.INTERNAL_SERVER_ERROR,
       undefined,
@@ -70,19 +74,21 @@ export async function GET(
 }
 
 // PUT /api/roles/[id] - Update a role
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+async function putHandler(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
+  let id: string | undefined;
   try {
     await requirePermission('roles', 'write')
 
-    const { id } = await params;
+    const resolvedParams = await params;
+    id = resolvedParams.id;
     const body = await request.json()
     const { name, description, permissions } = body
 
     // Check if role exists
-    const existingRole = await rbac.getRole(id)
+    const existingRole = await rbac.getRole(id!)
     if (!existingRole) {
       return createErrorResponse(ERRORS.ROLE_NOT_FOUND)
     }
@@ -96,7 +102,7 @@ export async function PUT(
     }
 
     // Update the role
-    const updatedRole = await rbac.updateRole(id, {
+    const updatedRole = await rbac.updateRole(id!, {
       name: name || existingRole.name,
       description: description !== undefined ? description : existingRole.description,
     })
@@ -111,7 +117,7 @@ export async function PUT(
       await requireAnyPermission(['permissions:*', 'permissions:write']);
 
       // Clear existing permissions
-      await rbac.clearRolePermissions(id)
+      await rbac.clearRolePermissions(id!)
 
       // Add new permissions
       if (permissions.length > 0) {
@@ -120,7 +126,7 @@ export async function PUT(
             permissions.map(async (permissionName: string) => {
               const permission = await validateAndGetOrCreatePermission(permissionName)
               if (permission) {
-                await rbac.addPermissionToRole(id, permission.id)
+                await rbac.addPermissionToRole(id!, permission.id)
               }
             })
           )
@@ -140,17 +146,17 @@ export async function PUT(
     }
 
     // Fetch the role with its permissions
-    const rolePermissions = await rbac.getRolePermissions(id)
+    const rolePermissions = await rbac.getRolePermissions(id!)
 
     // Log role update activity
     const currentUser = await getCurrentUser();
     await logActivity({
       action: 'update',
       resourceType: 'role',
-      resourceId: id,
+      resourceId: id!,
       description: `Role updated: ${updatedRole.name}`,
       metadata: {
-        roleId: id,
+        roleId: id!,
         roleName: updatedRole.name,
         roleDescription: updatedRole.description,
         previousName: existingRole.name,
@@ -177,7 +183,7 @@ export async function PUT(
         error.message
       )
     }
-    console.error("Error updating role:", error)
+    logger.error("Error updating role", { error, roleId: id })
     return createErrorResponse(
       ERRORS.INTERNAL_SERVER_ERROR,
       undefined,
@@ -187,31 +193,33 @@ export async function PUT(
 }
 
 // DELETE /api/roles/[id] - Delete a role
-export async function DELETE(
+async function deleteHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let id: string | undefined;
   try {
     await requirePermission('roles', 'write')
 
-    const { id } = await params;
+    const resolvedParams = await params;
+    id = resolvedParams.id;
     // Check if role exists
-    const role = await rbac.getRole(id)
+    const role = await rbac.getRole(id!)
     if (!role) {
       return createErrorResponse(ERRORS.ROLE_NOT_FOUND)
     }
 
-    await rbac.deleteRole(id)
+    await rbac.deleteRole(id!)
 
     // Log role deletion activity
     const currentUser = await getCurrentUser();
     await logActivity({
       action: 'delete',
       resourceType: 'role',
-      resourceId: id,
+      resourceId: id!,
       description: `Role deleted: ${role.name}`,
       metadata: {
-        roleId: id,
+        roleId: id!,
         roleName: role.name,
         roleDescription: role.description,
       },
@@ -226,7 +234,7 @@ export async function DELETE(
     if (error.message === 'Forbidden') {
       return createErrorResponse(ERRORS.FORBIDDEN)
     }
-    console.error("Error deleting role:", error)
+    logger.error("Error deleting role", { error, roleId: id })
     return createErrorResponse(
       ERRORS.INTERNAL_SERVER_ERROR,
       undefined,
@@ -234,4 +242,7 @@ export async function DELETE(
     )
   }
 }
+
+export const PUT = withCsrfProtection(putHandler);
+export const DELETE = withCsrfProtection(deleteHandler);
 

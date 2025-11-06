@@ -27,6 +27,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockUser }),
       } as Response)
 
@@ -44,6 +45,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockResponse }),
       } as Response)
 
@@ -58,6 +60,7 @@ describe('lib/api', () => {
     it('should handle error responses', async () => {
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: false,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({
           status: 'error',
           data: { alias: 'INVALID_CREDENTIALS', code: 401, message: 'Invalid credentials' },
@@ -70,6 +73,7 @@ describe('lib/api', () => {
     it('should logout', async () => {
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: undefined }),
       } as Response)
 
@@ -91,6 +95,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockData }),
       } as Response)
 
@@ -108,6 +113,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockUsers }),
       } as Response)
 
@@ -120,6 +126,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockUser }),
       } as Response)
 
@@ -134,6 +141,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockUser }),
       } as Response)
 
@@ -150,6 +158,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockUser }),
       } as Response)
 
@@ -160,6 +169,7 @@ describe('lib/api', () => {
     it('should delete user', async () => {
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: undefined }),
       } as Response)
 
@@ -174,6 +184,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockResponse }),
       } as Response)
 
@@ -186,6 +197,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockResponse }),
       } as Response)
 
@@ -203,6 +215,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockRoles }),
       } as Response)
 
@@ -215,6 +228,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockRole }),
       } as Response)
 
@@ -235,6 +249,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockPermissions }),
       } as Response)
 
@@ -249,6 +264,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockFiles }),
       } as Response)
 
@@ -261,6 +277,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockFiles }),
       } as Response)
 
@@ -277,6 +294,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockFolder }),
       } as Response)
 
@@ -290,6 +308,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockFile }),
       } as Response)
 
@@ -305,6 +324,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: false,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({
           status: 'error',
           data: { alias: 'FILE_SIZE_EXCEEDED', code: 400, message: 'File too large' },
@@ -319,6 +339,7 @@ describe('lib/api', () => {
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: async () => ({ status: 'ok', data: mockResponse }),
       } as Response)
 

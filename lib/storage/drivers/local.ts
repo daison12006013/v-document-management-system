@@ -4,7 +4,7 @@
  */
 
 import { promises as fs } from 'fs';
-import { join, dirname, resolve } from 'path';
+import { join, dirname, resolve, relative } from 'path';
 import { createHmac } from 'crypto';
 import type { StorageDriver, StorageResult, UploadSignedUrl } from '../types';
 import { getStorageConfig, getSignedUrlConfig } from '../config';
@@ -36,11 +36,41 @@ export class LocalStorageDriver implements StorageDriver {
 
   /**
    * Generate a secure file path to prevent directory traversal
+   * Improved version that handles encoded paths and edge cases
    */
-  private sanitizePath(path: string): string {
-    // Remove any leading slashes and normalize path
-    const normalized = path.replace(/^\/+/, '').replace(/\.\./g, '');
-    return normalized;
+  private sanitizePath(filePath: string): string {
+    // Decode URL-encoded characters first (handles %2e%2e, %2f, etc.)
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(filePath);
+    } catch (e) {
+      // If decoding fails, use original (but will be caught by normalize check)
+      decoded = filePath;
+    }
+
+    // Remove leading slashes
+    let normalized = decoded.replace(/^\/+/, '');
+
+    // Normalize path separators and remove any remaining directory traversal attempts
+    normalized = normalized.replace(/\\/g, '/'); // Normalize Windows paths
+    normalized = normalized.replace(/\.\./g, ''); // Remove directory traversal
+
+    // Remove any encoded directory traversal attempts
+    normalized = normalized.replace(/%2e%2e/gi, ''); // %2e = .
+    normalized = normalized.replace(/%2f/gi, ''); // %2f = /
+    normalized = normalized.replace(/%5c/gi, ''); // %5c = \
+
+    // Resolve against storage root to detect traversal attempts
+    const resolved = resolve(this.storagePath, normalized);
+    const storageRoot = resolve(this.storagePath);
+
+    // Ensure resolved path is within storage root (prevents any traversal)
+    if (!resolved.startsWith(storageRoot + '/') && resolved !== storageRoot) {
+      throw new Error('Invalid path: directory traversal detected');
+    }
+
+    // Return relative path from storage root, normalized with forward slashes
+    return relative(storageRoot, resolved).replace(/\\/g, '/');
   }
 
   /**

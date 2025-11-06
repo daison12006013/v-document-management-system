@@ -727,7 +727,6 @@ export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
                 <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
                   <Upload className="h-12 w-12 text-muted-foreground" />
                   <div>
-                    <h3 className="text-lg font-semibold mb-2">No documents yet</h3>
                     <p className="text-sm text-muted-foreground mb-4">
                       Get started by uploading your first document
                     </p>

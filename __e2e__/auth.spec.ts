@@ -98,11 +98,22 @@ test.describe('Authentication - Logged In', () => {
     const logoutButton = page.getByRole('button', { name: /logout/i })
     await expect(logoutButton).toBeVisible({ timeout: 5000 })
 
-    await logoutButton.click()
+    // Click logout and wait for navigation to root
+    // The logout handler will call the API and then navigate
+    await Promise.all([
+      page.waitForURL('/', { timeout: 15000 }),
+      logoutButton.click()
+    ])
 
-    // Should redirect to login page after logout
+    // Wait for the page to fully reload after logout
+    // This ensures the server-side render completes with the cleared session
     await page.waitForLoadState('networkidle')
-    // Wait a bit for the page to refresh and show login form
+
+    // Wait for the login form to be visible - this confirms we're on the login page
+    // Check for the Sign In button which is more reliable than just the form element
+    await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible({ timeout: 15000 })
+
+    // Now verify the email input is visible
     await expect(page.getByLabel(/email/i)).toBeVisible({ timeout: 10000 })
   })
 })

@@ -1,33 +1,20 @@
-import { cookies } from 'next/headers';
 import * as userQueries from '@/lib/queries/users';
 import * as rbacQueries from '@/lib/queries/rbac';
 import type { User } from '@/lib/types';
+import { getSessionFromCookie } from '@/lib/auth/session';
+import { UnauthorizedError, ForbiddenError } from '@/lib/errors';
+import { logger } from '@/lib/logger';
 
 export async function getCurrentUser(): Promise<User | null> {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('vistra_session')?.value;
+    const sessionData = await getSessionFromCookie();
 
-    if (!sessionCookie) {
-      return null;
-    }
-
-    // Parse JSON session data
-    let sessionData;
-    try {
-      sessionData = JSON.parse(sessionCookie);
-    } catch (parseError) {
-      console.error('Error parsing session cookie:', parseError);
-      return null;
-    }
-
-    // Validate session data structure
-    if (!sessionData?.id) {
+    if (!sessionData) {
       return null;
     }
 
     // Verify user still exists in database (security check)
-    const user = await userQueries.getUser(sessionData.id);
+    const user = await userQueries.getUser(sessionData.userId);
 
     if (!user) {
       return null;
@@ -40,16 +27,16 @@ export async function getCurrentUser(): Promise<User | null> {
       name: user.name,
     };
   } catch (error) {
-    console.error('Error getting current user:', error);
+    logger.error('Error getting current user', { error });
     return null;
   }
 }
 
-async function requireAuth(): Promise<User> {
+export async function requireAuth(): Promise<User> {
   const user = await getCurrentUser();
 
   if (!user) {
-    throw new Error('Unauthorized');
+    throw new UnauthorizedError();
   }
 
   return user;
@@ -61,7 +48,7 @@ export async function requirePermission(resource: string, action: string): Promi
   const hasPermission = await rbacQueries.checkUserPermission(user.id, resource, action);
 
   if (!hasPermission) {
-    throw new Error('Forbidden');
+    throw new ForbiddenError();
   }
 
   return user;
@@ -71,8 +58,8 @@ export async function requirePermission(resource: string, action: string): Promi
  * Requires that the user has ANY of the specified permissions (OR logic)
  * @param permissionNames Array of permission names to check (e.g., ['users:write', 'users:*'])
  * @returns The authenticated user if they have at least one permission
- * @throws Error('Unauthorized') if user is not authenticated
- * @throws Error('Forbidden') if user doesn't have any of the required permissions
+ * @throws UnauthorizedError if user is not authenticated
+ * @throws ForbiddenError if user doesn't have any of the required permissions
  */
 export async function requireAnyPermission(permissionNames: string[]): Promise<User> {
   const user = await requireAuth();
@@ -94,7 +81,7 @@ export async function requireAnyPermission(permissionNames: string[]): Promise<U
   }
 
   // User doesn't have any of the required permissions
-  throw new Error('Forbidden');
+  throw new ForbiddenError();
 }
 
 /**
@@ -107,7 +94,7 @@ export async function isSystemAccount(userId: string): Promise<boolean> {
     const user = await userQueries.getUser(userId);
     return user?.isSystemAccount === true || false;
   } catch (error) {
-    console.error('Error checking if user is system account:', error);
+    logger.error('Error checking if user is system account', { userId, error });
     return false;
   }
 }

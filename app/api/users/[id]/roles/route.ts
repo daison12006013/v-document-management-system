@@ -4,12 +4,15 @@ import * as userQueries from '@/lib/queries/users';
 import * as rbacQueries from '@/lib/queries/rbac';
 import { logActivity } from '@/lib/activities';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
+import { logger } from '@/lib/logger';
+import { withCsrfProtection } from '@/lib/middleware/csrf';
 
 // POST /api/users/[id]/roles - Assign role to user
-export async function POST(
+async function postHandler(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    let id: string | undefined;
     try {
         // User must have BOTH users:write AND permission to manage roles
         await requirePermission('users', 'write');
@@ -20,7 +23,8 @@ export async function POST(
             return createErrorResponse(ERRORS.UNAUTHORIZED);
         }
 
-        const { id } = await params;
+        const resolvedParams = await params;
+        id = resolvedParams.id;
         const body = await request.json();
         const { roleId } = body;
 
@@ -83,7 +87,7 @@ export async function POST(
         if (error.message === 'Forbidden') {
             return createErrorResponse(ERRORS.FORBIDDEN);
         }
-        console.error('Assign role API error:', error);
+        logger.error('Assign role API error', { error, userId: id! });
         return createErrorResponse(
             ERRORS.INTERNAL_SERVER_ERROR,
             undefined,
@@ -92,17 +96,21 @@ export async function POST(
     }
 }
 
+export const POST = withCsrfProtection(postHandler);
+
 // DELETE /api/users/[id]/roles?roleId=xxx - Remove role from user
-export async function DELETE(
+async function deleteHandler(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    let id: string | undefined;
     try {
         // User must have BOTH users:write AND permission to manage roles
         await requirePermission('users', 'write');
         await requireAnyPermission(['roles:*', 'roles:write']);
 
-        const { id } = await params;
+        const resolvedParams = await params;
+        id = resolvedParams.id;
         const { searchParams } = new URL(request.url);
         const roleId = searchParams.get('roleId');
 
@@ -162,7 +170,7 @@ export async function DELETE(
         if (error.message === 'Forbidden') {
             return createErrorResponse(ERRORS.FORBIDDEN);
         }
-        console.error('Remove role API error:', error);
+        logger.error('Remove role API error', { error, userId: id! });
         return createErrorResponse(
             ERRORS.INTERNAL_SERVER_ERROR,
             undefined,
@@ -170,3 +178,5 @@ export async function DELETE(
         );
     }
 }
+
+export const DELETE = withCsrfProtection(deleteHandler);

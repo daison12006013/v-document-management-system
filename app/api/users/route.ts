@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { requirePermission, getCurrentUser } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/auth';
 import * as userQueries from '@/lib/queries/users';
 import * as rbacQueries from '@/lib/queries/rbac';
 import { logActivity } from '@/lib/activities';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
+import { withAuth } from '@/lib/middleware/auth';
+import { validateRequest } from '@/lib/validations/middleware';
+import { createUserSchema } from '@/lib/validations/schemas';
+import { logger } from '@/lib/logger';
+import { UnauthorizedError, ForbiddenError, ValidationError } from '@/lib/errors';
+import { withCsrfProtection } from '@/lib/middleware/csrf';
+import type { User } from '@/lib/types';
 
 // GET /api/users - List all users
-export async function GET() {
+export const GET = withAuth(async (request: NextRequest, user) => {
     try {
-        await requirePermission('users', 'read');
-
         const usersList = await userQueries.listUsers();
 
         // For each user, get their roles and permissions
@@ -23,17 +28,21 @@ export async function GET() {
                         userQueries.getUserDirectPermissions(user.id),
                         userQueries.getUserPermissions(user.id),
                     ]);
+                    // Exclude password from response
+                    const { password: _, ...userWithoutPassword } = user;
                     return {
-                        ...user,
+                        ...userWithoutPassword,
                         roles: (roles || []).map(r => r?.role).filter(Boolean),
                         permissions: permissions || [],
                         directPermissions: (directPermissions || []).map(p => p?.permission).filter(Boolean),
                     };
                 } catch (userError) {
-                    console.error(`Error fetching data for user ${user.id}:`, userError);
+                    logger.error(`Error fetching data for user ${user.id}`, { error: userError });
                     // Return user with empty arrays if there's an error fetching their roles/permissions
+                    // Exclude password from response
+                    const { password: _, ...userWithoutPassword } = user;
                     return {
-                        ...user,
+                        ...userWithoutPassword,
                         roles: [],
                         permissions: [],
                         directPermissions: [],
@@ -43,41 +52,27 @@ export async function GET() {
         );
 
         return createSuccessResponse(usersWithPermissions);
-    } catch (error: any) {
-        if (error.message === 'Unauthorized') {
-            return createErrorResponse(ERRORS.UNAUTHORIZED);
-        }
-        if (error.message === 'Forbidden') {
-            return createErrorResponse(ERRORS.FORBIDDEN);
-        }
-        console.error('List users API error:', error);
+    } catch (error) {
+        logger.error('List users API error', { error });
         return createErrorResponse(
             ERRORS.INTERNAL_SERVER_ERROR,
             undefined,
             error instanceof Error ? { message: error.message, stack: error.stack } : error
         );
     }
-}
+}, { requiredPermission: { resource: 'users', action: 'read' } });
 
 // POST /api/users - Create a new user
-export async function POST(request: NextRequest) {
+const createUserHandler = async (request: NextRequest, user: User) => {
     try {
-        await requirePermission('users', 'write');
-
-        const body = await request.json();
-        const { email, name, password } = body;
-
-        if (!email || !name || !password) {
-            return createErrorResponse(
-                ERRORS.MISSING_REQUIRED_FIELDS,
-                'Email, name, and password are required'
-            );
-        }
+        const validatedData = await validateRequest(request, createUserSchema);
+        const { email, name, password } = validatedData;
+        const currentUser = await getCurrentUser();
 
         // Check if user already exists
         const existingUser = await userQueries.getUserByEmail(email);
         if (existingUser) {
-            return createErrorResponse(ERRORS.USER_ALREADY_EXISTS);
+            return createErrorResponse(ERRORS.EMAIL_ALREADY_EXISTS);
         }
 
         // Hash the password before storing
@@ -94,7 +89,6 @@ export async function POST(request: NextRequest) {
         }
 
         // Log user creation activity
-        const currentUser = await getCurrentUser();
         await logActivity({
             action: 'create',
             resourceType: 'user',
@@ -104,19 +98,30 @@ export async function POST(request: NextRequest) {
             userId: currentUser?.id ?? null,
         });
 
-        return createSuccessResponse(newUser, { status: 201 });
-    } catch (error: any) {
-        if (error.message === 'Unauthorized') {
-            return createErrorResponse(ERRORS.UNAUTHORIZED);
+        logger.info('User created successfully', { userId: newUser.id, email: newUser.email, createdBy: currentUser?.id });
+
+        // Exclude password from response
+        const { password: _, ...userWithoutPassword } = newUser;
+        return createSuccessResponse(userWithoutPassword, { status: 201 });
+    } catch (error) {
+        if (error instanceof ValidationError) {
+            // Format validation error message to include specific field errors
+            let errorMessage = 'Validation failed';
+            if (error.details && Array.isArray(error.details)) {
+                const messages = error.details.map((detail: any) => detail.message).filter(Boolean);
+                if (messages.length > 0) {
+                    errorMessage = messages.join(', ');
+                }
+            }
+            return createErrorResponse(ERRORS.VALIDATION_ERROR, errorMessage, error.details);
         }
-        if (error.message === 'Forbidden') {
-            return createErrorResponse(ERRORS.FORBIDDEN);
-        }
-        console.error('Create user API error:', error);
+        logger.error('Create user API error', { error });
         return createErrorResponse(
             ERRORS.INTERNAL_SERVER_ERROR,
             undefined,
             error instanceof Error ? { message: error.message, stack: error.stack } : error
         );
     }
-}
+};
+
+export const POST = withCsrfProtection(withAuth(createUserHandler, { requiredPermission: { resource: 'users', action: 'write' } }));

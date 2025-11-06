@@ -137,7 +137,7 @@ export function FilesPage({ user }: FilesPageProps) {
     }
   }
 
-  const handleUpload = async (file: File, name?: string) => {
+  const handleUpload = async (file: globalThis.File, name?: string) => {
     try {
       await filesApi.uploadFile(file, currentFolderId, name)
       await loadFiles(currentFolderId)

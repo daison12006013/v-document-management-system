@@ -2,12 +2,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { getCurrentUser, requirePermission, requireAnyPermission, isSystemAccount } from '../auth'
 import * as userQueries from '../queries/users'
 import * as rbacQueries from '../queries/rbac'
-import { cookies } from 'next/headers'
+import * as sessionModule from '../auth/session'
 
 // Mock dependencies
 vi.mock('../queries/users')
 vi.mock('../queries/rbac')
-vi.mock('next/headers')
+vi.mock('../auth/session')
 
 describe('lib/auth', () => {
   const mockUser = {
@@ -23,40 +23,40 @@ describe('lib/auth', () => {
 
   describe('getCurrentUser', () => {
     it('should return null when no session cookie', async () => {
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue(undefined),
-      } as any)
+      vi.mocked(sessionModule.getSessionFromCookie).mockResolvedValue(null)
 
       const user = await getCurrentUser()
       expect(user).toBeNull()
     })
 
-    it('should return null when session cookie is invalid JSON', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue({ value: 'invalid-json' }),
-      } as any)
+    it('should return null when session cookie is invalid', async () => {
+      vi.mocked(sessionModule.getSessionFromCookie).mockResolvedValue(null)
 
       const user = await getCurrentUser()
       expect(user).toBeNull()
-
-      consoleErrorSpy.mockRestore()
     })
 
-    it('should return null when session data has no id', async () => {
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue({ value: JSON.stringify({ email: 'test@example.com' }) }),
-      } as any)
+    it('should return null when session data has no userId', async () => {
+      vi.mocked(sessionModule.getSessionFromCookie).mockResolvedValue({
+        userId: '',
+        email: 'test@example.com',
+        name: 'Test User',
+        createdAt: new Date().toISOString(),
+      })
+
+      vi.mocked(userQueries.getUser).mockResolvedValue(null)
 
       const user = await getCurrentUser()
       expect(user).toBeNull()
     })
 
     it('should return null when user not found in database', async () => {
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue({ value: JSON.stringify({ id: 'user-123' }) }),
-      } as any)
+      vi.mocked(sessionModule.getSessionFromCookie).mockResolvedValue({
+        userId: 'user-123',
+        email: 'test@example.com',
+        name: 'Test User',
+        createdAt: new Date().toISOString(),
+      })
       vi.mocked(userQueries.getUser).mockResolvedValue(null)
 
       const user = await getCurrentUser()
@@ -65,9 +65,12 @@ describe('lib/auth', () => {
     })
 
     it('should return user when session is valid', async () => {
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue({ value: JSON.stringify({ id: 'user-123' }) }),
-      } as any)
+      vi.mocked(sessionModule.getSessionFromCookie).mockResolvedValue({
+        userId: 'user-123',
+        email: 'test@example.com',
+        name: 'Test User',
+        createdAt: new Date().toISOString(),
+      })
       vi.mocked(userQueries.getUser).mockResolvedValue(mockUser as any)
 
       const user = await getCurrentUser()
@@ -79,30 +82,27 @@ describe('lib/auth', () => {
     })
 
     it('should return null on error', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-      vi.mocked(cookies).mockRejectedValue(new Error('Cookie error'))
+      vi.mocked(sessionModule.getSessionFromCookie).mockRejectedValue(new Error('Session error'))
 
       const user = await getCurrentUser()
       expect(user).toBeNull()
-
-      consoleErrorSpy.mockRestore()
     })
   })
 
   describe('requirePermission', () => {
     it('should throw error when user is not authenticated', async () => {
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue(undefined),
-      } as any)
+      vi.mocked(sessionModule.getSessionFromCookie).mockResolvedValue(null)
 
       await expect(requirePermission('users', 'read')).rejects.toThrow('Unauthorized')
     })
 
     it('should throw error when user lacks permission', async () => {
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue({ value: JSON.stringify({ id: 'user-123' }) }),
-      } as any)
+      vi.mocked(sessionModule.getSessionFromCookie).mockResolvedValue({
+        userId: 'user-123',
+        email: 'test@example.com',
+        name: 'Test User',
+        createdAt: new Date().toISOString(),
+      })
       vi.mocked(userQueries.getUser).mockResolvedValue(mockUser as any)
       vi.mocked(rbacQueries.checkUserPermission).mockResolvedValue(false)
 
@@ -110,9 +110,12 @@ describe('lib/auth', () => {
     })
 
     it('should return user when permission is granted', async () => {
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue({ value: JSON.stringify({ id: 'user-123' }) }),
-      } as any)
+      vi.mocked(sessionModule.getSessionFromCookie).mockResolvedValue({
+        userId: 'user-123',
+        email: 'test@example.com',
+        name: 'Test User',
+        createdAt: new Date().toISOString(),
+      })
       vi.mocked(userQueries.getUser).mockResolvedValue(mockUser as any)
       vi.mocked(rbacQueries.checkUserPermission).mockResolvedValue(true)
 
@@ -128,17 +131,18 @@ describe('lib/auth', () => {
 
   describe('requireAnyPermission', () => {
     it('should throw error when user is not authenticated', async () => {
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue(undefined),
-      } as any)
+      vi.mocked(sessionModule.getSessionFromCookie).mockResolvedValue(null)
 
       await expect(requireAnyPermission(['users:read', 'users:write'])).rejects.toThrow('Unauthorized')
     })
 
     it('should throw error when user lacks all permissions', async () => {
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue({ value: JSON.stringify({ id: 'user-123' }) }),
-      } as any)
+      vi.mocked(sessionModule.getSessionFromCookie).mockResolvedValue({
+        userId: 'user-123',
+        email: 'test@example.com',
+        name: 'Test User',
+        createdAt: new Date().toISOString(),
+      })
       vi.mocked(userQueries.getUser).mockResolvedValue(mockUser as any)
       vi.mocked(rbacQueries.checkUserPermission).mockResolvedValue(false)
 
@@ -146,9 +150,12 @@ describe('lib/auth', () => {
     })
 
     it('should return user when at least one permission is granted', async () => {
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue({ value: JSON.stringify({ id: 'user-123' }) }),
-      } as any)
+      vi.mocked(sessionModule.getSessionFromCookie).mockResolvedValue({
+        userId: 'user-123',
+        email: 'test@example.com',
+        name: 'Test User',
+        createdAt: new Date().toISOString(),
+      })
       vi.mocked(userQueries.getUser).mockResolvedValue(mockUser as any)
       vi.mocked(rbacQueries.checkUserPermission).mockImplementation((userId, resource, action) => {
         return Promise.resolve(resource === 'users' && action === 'read')
@@ -163,9 +170,12 @@ describe('lib/auth', () => {
     })
 
     it('should handle invalid permission format gracefully', async () => {
-      vi.mocked(cookies).mockResolvedValue({
-        get: vi.fn().mockReturnValue({ value: JSON.stringify({ id: 'user-123' }) }),
-      } as any)
+      vi.mocked(sessionModule.getSessionFromCookie).mockResolvedValue({
+        userId: 'user-123',
+        email: 'test@example.com',
+        name: 'Test User',
+        createdAt: new Date().toISOString(),
+      })
       vi.mocked(userQueries.getUser).mockResolvedValue(mockUser as any)
       vi.mocked(rbacQueries.checkUserPermission).mockResolvedValue(false)
 

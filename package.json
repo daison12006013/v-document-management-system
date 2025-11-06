@@ -55,6 +55,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.0",
     "drizzle-orm": "^0.44.7",
+    "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
     "lucide-react": "^0.552.0",
     "mysql2": "^3.15.3",
@@ -62,13 +63,15 @@
     "pg": "^8.16.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tailwind-merge": "^2.2.1"
+    "tailwind-merge": "^2.2.1",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.9.2",
     "@types/pg": "^8.15.6",
     "@types/react": "^19.2.2",
