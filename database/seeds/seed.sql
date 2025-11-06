@@ -47,7 +47,16 @@ INSERT INTO permissions (id, name, resource, action, description, created_at, up
   ('20000000-0000-0000-0000-000000000011', 'dashboard:users_count', 'dashboard', 'users_count', 'View total users count on dashboard', NOW(), NOW()),
   ('20000000-0000-0000-0000-000000000012', 'dashboard:roles_count', 'dashboard', 'roles_count', 'View total roles count on dashboard', NOW(), NOW()),
   ('20000000-0000-0000-0000-000000000013', 'dashboard:permissions_count', 'dashboard', 'permissions_count', 'View total permissions count on dashboard', NOW(), NOW()),
-  ('20000000-0000-0000-0000-000000000014', 'dashboard:recent_activity', 'dashboard', 'recent_activity', 'View recent activities on dashboard', NOW(), NOW())
+  ('20000000-0000-0000-0000-000000000014', 'dashboard:recent_activity', 'dashboard', 'recent_activity', 'View recent activities on dashboard', NOW(), NOW()),
+
+  -- File management permissions
+  ('20000000-0000-0000-0000-000000000015', 'files:create', 'files', 'create', 'Upload files and create folders', NOW(), NOW()),
+  ('20000000-0000-0000-0000-000000000016', 'files:read', 'files', 'read', 'View files and folders', NOW(), NOW()),
+  ('20000000-0000-0000-0000-000000000017', 'files:update', 'files', 'update', 'Edit file metadata and rename folders', NOW(), NOW()),
+  ('20000000-0000-0000-0000-000000000018', 'files:delete', 'files', 'delete', 'Delete files and folders', NOW(), NOW()),
+  ('20000000-0000-0000-0000-000000000019', 'files:download', 'files', 'download', 'Download files', NOW(), NOW()),
+  ('20000000-0000-0000-0000-000000000020', 'files:share', 'files', 'share', 'Share files with other users', NOW(), NOW()),
+  ('20000000-0000-0000-0000-000000000021', 'files:*', 'files', '*', 'All file operations', NOW(), NOW())
 ON DUPLICATE KEY UPDATE
   resource = VALUES(resource),
   action = VALUES(action),
@@ -63,7 +72,13 @@ ON DUPLICATE KEY UPDATE created_at = NOW();
 -- User role gets user read and write permissions
 INSERT INTO role_permissions (role_id, permission_id, created_at) VALUES
   ('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000002', NOW()),
-  ('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000003', NOW())
+  ('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000003', NOW()),
+  -- File management permissions for user role
+  ('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000015', NOW()),
+  ('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000016', NOW()),
+  ('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000017', NOW()),
+  ('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000018', NOW()),
+  ('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000019', NOW())
 ON DUPLICATE KEY UPDATE created_at = NOW();
 
 -- Viewer role gets read-only permissions
@@ -75,7 +90,10 @@ INSERT INTO role_permissions (role_id, permission_id, created_at) VALUES
   ('10000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000011', NOW()),
   ('10000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000012', NOW()),
   ('10000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000013', NOW()),
-  ('10000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000014', NOW())
+  ('10000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000014', NOW()),
+  -- File read-only permissions for viewer
+  ('10000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000016', NOW()),
+  ('10000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000019', NOW())
 ON DUPLICATE KEY UPDATE created_at = NOW();
 
 -- User role also gets dashboard read permissions

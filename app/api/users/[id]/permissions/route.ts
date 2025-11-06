@@ -59,8 +59,7 @@ export async function POST(
         // Assign permission to user
         await rbacQueries.assignPermissionToUser(id, permissionId, currentUser.id);
 
-        // Fetch updated user roles and permissions
-        // getUserRoles and getUserDirectPermissions are independent, so fetch them in parallel
+        // Fetch updated user roles and permissions in parallel
         const [roles, directPermissions, permissions] = await Promise.all([
             userQueries.getUserRoles(id),
             userQueries.getUserDirectPermissions(id),
@@ -148,14 +147,12 @@ export async function DELETE(
         // Remove permission from user
         await rbacQueries.removePermissionFromUser(id, permissionId);
 
-        // Fetch updated user roles and permissions
-        // getUserRoles and getUserDirectPermissions are independent, so fetch them in parallel
-        const [roles, directPermissions] = await Promise.all([
+        // Fetch updated user roles and permissions in parallel
+        const [roles, directPermissions, permissions] = await Promise.all([
             userQueries.getUserRoles(id),
             userQueries.getUserDirectPermissions(id),
+            userQueries.getUserPermissions(id),
         ]);
-        // getUserPermissions will fetch roles and directPermissions internally
-        const permissions = await userQueries.getUserPermissions(id);
 
         // Log permission removal activity
         const currentUser = await getCurrentUser();

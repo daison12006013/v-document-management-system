@@ -18,7 +18,7 @@ export async function GET() {
             recentActivities?: any[];
         } = {};
 
-        // Check all permissions in parallel (they're independent)
+        // Check permissions in parallel
         const [
             hasUsersCountPermission,
             hasRolesCountPermission,
@@ -31,7 +31,7 @@ export async function GET() {
             rbacQueries.checkUserPermissionByName(user.id, 'dashboard:recent_activity'),
         ]);
 
-        // Fetch authorized data in parallel (only for permissions that were granted)
+        // Fetch authorized data in parallel
         const fetchPromises: Promise<any>[] = [];
         const resultKeys: string[] = [];
 
@@ -57,7 +57,6 @@ export async function GET() {
 
         const fetchResults = await Promise.all(fetchPromises);
 
-        // Process results
         fetchResults.forEach((fetchResult, index) => {
             const key = resultKeys[index];
             if (key === 'recentActivities') {

@@ -1,4 +1,4 @@
-import type { User, Role, Permission, Activity } from "@/lib/types"
+import type { User, Role, Permission, Activity, File } from "@/lib/types"
 
 // Base API error class
 export class ApiError extends Error {
@@ -275,5 +275,132 @@ export const permissions = {
     async getAll(): Promise<Permission[]> {
         return request<Permission[]>("/api/permissions")
     },
+}
+
+// Files API
+export const files = {
+    /**
+     * Get all files/folders (with optional filters)
+     */
+    async getAll(params?: {
+        parentId?: string | null
+        type?: 'file' | 'folder'
+        limit?: number
+        offset?: number
+    }): Promise<File[]> {
+        const searchParams = new URLSearchParams()
+        if (params?.parentId !== undefined) {
+            searchParams.append('parentId', params.parentId === null ? 'null' : params.parentId)
+        }
+        if (params?.type) {
+            searchParams.append('type', params.type)
+        }
+        if (params?.limit) {
+            searchParams.append('limit', params.limit.toString())
+        }
+        if (params?.offset) {
+            searchParams.append('offset', params.offset.toString())
+        }
+        const query = searchParams.toString()
+        return request<File[]>(`/api/files${query ? `?${query}` : ''}`)
+    },
+
+    /**
+     * Get a single file/folder by ID
+     */
+    async getById(id: string): Promise<File> {
+        return request<File>(`/api/files/${id}`)
+    },
+
+    /**
+     * Get folder children
+     */
+    async getChildren(folderId: string): Promise<File[]> {
+        return request<File[]>(`/api/files/${folderId}/children`)
+    },
+
+    /**
+     * Create a folder
+     */
+    async createFolder(data: { name: string; parentId?: string | null }): Promise<File> {
+        return request<File>("/api/files", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                name: data.name,
+                type: "folder",
+                parentId: data.parentId || null,
+            }),
+        })
+    },
+
+    /**
+     * Upload a file
+     */
+    async uploadFile(file: File, parentId?: string | null, name?: string): Promise<File> {
+        const formData = new FormData()
+        formData.append('file', file)
+        if (parentId !== undefined) {
+            formData.append('parentId', parentId || '')
+        }
+        if (name) {
+            formData.append('name', name)
+        }
+
+        const response = await fetch("/api/files", {
+            method: "POST",
+            body: formData,
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+            throw new ApiError(
+                data.error || `Upload failed with status ${response.status}`,
+                response.status,
+                data
+            )
+        }
+
+        return data
+    },
+
+    /**
+     * Update a file/folder
+     */
+    async update(id: string, data: { name?: string; parentId?: string | null; metadata?: Record<string, any> }): Promise<File> {
+        return request<File>(`/api/files/${id}`, {
+            method: "PUT",
+            body: JSON.stringify(data),
+        })
+    },
+
+    /**
+     * Delete a file/folder
+     */
+    async delete(id: string): Promise<void> {
+        return request<void>(`/api/files/${id}`, {
+            method: "DELETE",
+        })
+    },
+
+    /**
+     * Get download URL for a file
+     */
+    async getDownloadUrl(id: string): Promise<{ url: string; filename: string; mimeType?: string; size?: number }> {
+        return request<{ url: string; filename: string; mimeType?: string; size?: number }>(`/api/files/${id}/download`)
+    },
+}
+
+// Combined API object for convenience
+export const api = {
+    auth,
+    dashboard,
+    users,
+    roles,
+    permissions,
+    files,
 }
 

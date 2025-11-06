@@ -16,12 +16,11 @@ export async function GET() {
         const usersWithPermissions = await Promise.all(
             usersList.map(async (user) => {
                 // getUserRoles and getUserDirectPermissions are independent, so fetch them in parallel
-                const [roles, directPermissions] = await Promise.all([
+                const [roles, directPermissions, permissions] = await Promise.all([
                     userQueries.getUserRoles(user.id),
                     userQueries.getUserDirectPermissions(user.id),
+                    userQueries.getUserPermissions(user.id),
                 ]);
-                // getUserPermissions will fetch roles and directPermissions internally
-                const permissions = await userQueries.getUserPermissions(user.id);
                 return {
                     ...user,
                     roles: roles.map(r => r.role).filter(Boolean),

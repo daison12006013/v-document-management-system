@@ -25,10 +25,13 @@ function getPool(): mysql.Pool {
       database: url.pathname.slice(1), // Remove leading '/'
       // Connection pool configuration
       waitForConnections: true,
-      connectionLimit: 10,
+      connectionLimit: 20, // Increased to handle concurrent requests
       queueLimit: 0,
       enableKeepAlive: true,
       keepAliveInitialDelay: 0,
+      // Connection timeout settings
+      acquireTimeout: 60000, // 60 seconds to acquire connection
+      timeout: 60000, // 60 seconds query timeout
     });
 
     // Handle pool errors
@@ -48,7 +51,14 @@ let dbInstance: ReturnType<typeof drizzle<typeof schema, mysql.Pool>> | null = n
 function getDb() {
   if (!dbInstance) {
     const pool = getPool();
-    dbInstance = drizzle(pool, { schema, mode: 'default' });
+    // Use 'default' mode which properly handles connection pools
+    // Connections are automatically acquired from and released back to the pool
+    dbInstance = drizzle(pool, {
+      schema,
+      mode: 'default',
+      // Ensure proper connection handling
+      logger: process.env.NODE_ENV === 'development',
+    });
   }
   return dbInstance;
 }
@@ -59,5 +69,15 @@ export const db = getDb();
 // Export pool for raw queries if needed
 export async function getClient() {
   return getPool().getConnection();
+}
+
+// Get pool statistics for monitoring
+export function getPoolStats() {
+  const pool = getPool();
+  return {
+    totalConnections: (pool as any)._allConnections?.length || 0,
+    freeConnections: (pool as any)._freeConnections?.length || 0,
+    queueLength: (pool as any)._connectionQueue?.length || 0,
+  };
 }
 

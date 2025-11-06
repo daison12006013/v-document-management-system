@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Uppy styles - imported in layout.tsx instead */
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -75,3 +77,5 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Uppy styles are now imported from @uppy/core and @uppy/dashboard */

@@ -22,8 +22,7 @@ export async function GET(
             );
         }
 
-        // Get user roles, permissions, and direct permissions
-        // getUserRoles and getUserDirectPermissions are independent, so fetch them in parallel
+        // Get user roles, permissions, and direct permissions in parallel
         const [roles, directPermissions, permissions] = await Promise.all([
             userQueries.getUserRoles(user.id),
             userQueries.getUserDirectPermissions(user.id),

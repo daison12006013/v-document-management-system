@@ -38,3 +38,24 @@ export interface Activity {
   userEmail: string | null
 }
 
+export interface File {
+  id: string
+  name: string
+  type: 'file' | 'folder'
+  parentId: string | null
+  path: string
+  originalName?: string | null
+  mimeType?: string | null
+  size?: number | null
+  storagePath?: string | null
+  storageDriver?: 'local' | 's3' | 'r2' | null
+  checksum?: string | null
+  createdBy: string
+  metadata?: Record<string, any> | null
+  createdAt: Date | null
+  updatedAt: Date | null
+  deletedAt?: Date | null
+  parent?: File | null
+  creator?: User | null
+}
+

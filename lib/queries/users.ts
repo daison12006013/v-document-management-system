@@ -82,7 +82,7 @@ export async function getUserDirectPermissions(userId: string) {
 
 // Get all user permissions (from roles + direct)
 export async function getUserPermissions(userId: string) {
-  // Get roles and direct permissions in parallel (they're independent)
+  // Get roles and direct permissions in parallel
   const [userRolesList, directPermissions] = await Promise.all([
     getUserRoles(userId),
     getUserDirectPermissions(userId),

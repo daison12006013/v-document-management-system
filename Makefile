@@ -116,9 +116,9 @@ db-clean: ## Drop all tables from database (with confirmation)
 _db-drop-tables: ## Internal: Drop all tables (no confirmation)
 	@echo "${BLUE}Dropping all tables...${NC}"
 	@docker-compose exec -T mysql mysql -uvistra_user -pvistra_password vistra_db -e "SET FOREIGN_KEY_CHECKS = 0; \
-		DROP TABLE IF EXISTS activities, user_permissions, user_roles, role_permissions, permissions, roles, users;" 2>/dev/null || \
+		DROP TABLE IF EXISTS file_shares, files, activities, user_permissions, user_roles, role_permissions, permissions, roles, users;" 2>/dev/null || \
 	 docker exec vistra_mysql mysql -uvistra_user -pvistra_password vistra_db -e "SET FOREIGN_KEY_CHECKS = 0; \
-		DROP TABLE IF EXISTS activities, user_permissions, user_roles, role_permissions, permissions, roles, users;" 2>/dev/null || \
+		DROP TABLE IF EXISTS file_shares, files, activities, user_permissions, user_roles, role_permissions, permissions, roles, users;" 2>/dev/null || \
 	 (echo "${YELLOW}Warning: Could not drop tables. Database may be empty.${NC}" && exit 0)
 	@echo "${GREEN}✓ All tables dropped${NC}"
 
@@ -145,8 +145,8 @@ db-studio: ## Open Drizzle Studio (visual database browser)
 	pnpm db:studio
 
 ## Cleanup
-clean: ## Remove build artifacts and node_modules (with confirmation)
-	@echo "${YELLOW}⚠️  WARNING: This will remove .next and node_modules!${NC}"
+clean: ## Remove build artifacts, node_modules, and database tables (with confirmation)
+	@echo "${YELLOW}⚠️  WARNING: This will remove .next, node_modules, AND all database tables!${NC}"
 	@read -p "Are you sure you want to continue? [y/N] " -n 1 -r; \
 	echo; \
 	if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
@@ -154,8 +154,14 @@ clean: ## Remove build artifacts and node_modules (with confirmation)
 		exit 1; \
 	fi
 	@echo "${BLUE}Cleaning build artifacts...${NC}"
+	@echo "Stopping any running Next.js processes..."
+	@pkill -f "next" || true
+	@sleep 1
 	rm -rf .next node_modules
-	@echo "${GREEN}✓ Cleanup completed${NC}"
+	@echo "${GREEN}✓ Build artifacts cleaned${NC}"
+	@echo "${BLUE}Dropping database tables...${NC}"
+	@$(MAKE) _db-drop-tables || echo "${YELLOW}Warning: Could not drop database tables (database may not be running)${NC}"
+	@echo "${GREEN}✓ Complete cleanup finished${NC}"
 
 ## Setup
 setup: install db-start db-push db-seed ## Complete setup (install + start DB + push schema + seed)

@@ -159,7 +159,7 @@ export async function checkUserPermission(
   // MySQL doesn't have PL/pgSQL functions, so we'll do this in TypeScript
   const requiredPermission = `${resource}:${action}`;
 
-  // Get user roles and direct permissions in parallel (they're independent)
+  // Get user roles and direct permissions in parallel
   const [userRolesList, directPerms] = await Promise.all([
     db.query.userRoles.findMany({
       where: and(

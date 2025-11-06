@@ -1,4 +1,5 @@
 import { mysqlTable, varchar, boolean, timestamp, char } from 'drizzle-orm/mysql-core';
+import { sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 
 export const users = mysqlTable('users', {
@@ -7,6 +8,6 @@ export const users = mysqlTable('users', {
   name: varchar('name', { length: 255 }).notNull(),
   password: varchar('password', { length: 255 }).notNull(),
   isSystemAccount: boolean('is_system_account').notNull().default(false),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+  createdAt: timestamp('created_at', { fsp: 6 }).default(sql`CURRENT_TIMESTAMP(6)`).notNull(),
+  updatedAt: timestamp('updated_at', { fsp: 6 }).default(sql`CURRENT_TIMESTAMP(6)`).notNull(),
 });
