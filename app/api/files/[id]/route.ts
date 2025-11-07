@@ -84,7 +84,7 @@ export const PUT = withCsrfProtection(putHandler);
 // DELETE /api/files/[id] - Delete file/folder
 const deleteHandler = withAuth(async (
     _request: NextRequest,
-    _user,
+    user,
     context: { params: Promise<{ id: string }> }
 ) => {
   try {
