@@ -1,4 +1,4 @@
-name: Tests
+name: CI
 
 on:
   push:
@@ -34,9 +34,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run unit tests
-        run: pnpm test
-
       - name: Run unit tests with coverage
         run: pnpm test:coverage
 
@@ -67,7 +64,7 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-        command: --default-authentication-plugin=mysql_native_password
+          --default-authentication-plugin=mysql_native_password
 
     steps:
       - name: Checkout code
@@ -86,6 +83,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client default-mysql-client
 
       - name: Wait for MySQL to be ready
         run: |
@@ -111,12 +113,12 @@ jobs:
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
         run: |
-          # Install mysql client if not available
-          sudo apt-get update && sudo apt-get install -y mysql-client || true
-          # Use mysql client to run seed script (fallback to docker exec if mysql client not available)
-          mysql -h 127.0.0.1 -u vistra_user -pvistra_password vistra_db < database/seeds/seed.sql || \
-          docker exec -i $(docker ps -q -f name=mysql) mysql -uvistra_user -pvistra_password vistra_db < database/seeds/seed.sql
-          echo "✓ Database seeded"
+          if [ -f database/seeds/seed.sql ]; then
+            mysql -h 127.0.0.1 -u vistra_user -pvistra_password vistra_db < database/seeds/seed.sql
+            echo "✓ Database seeded"
+          else
+            echo "⚠️  No seed file found at database/seeds/seed.sql, skipping seed step"
+          fi
 
       - name: Build application
         env:
@@ -173,7 +175,7 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-        command: --default-authentication-plugin=mysql_native_password
+          --default-authentication-plugin=mysql_native_password
 
     steps:
       - name: Checkout code
@@ -195,6 +197,11 @@ jobs:
 
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client default-mysql-client
 
       - name: Wait for MySQL to be ready
         run: |
@@ -220,12 +227,12 @@ jobs:
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
         run: |
-          # Install mysql client if not available
-          sudo apt-get update && sudo apt-get install -y mysql-client || true
-          # Use mysql client to run seed script (fallback to docker exec if mysql client not available)
-          mysql -h 127.0.0.1 -u vistra_user -pvistra_password vistra_db < database/seeds/seed.sql || \
-          docker exec -i $(docker ps -q -f name=mysql) mysql -uvistra_user -pvistra_password vistra_db < database/seeds/seed.sql
-          echo "✓ Database seeded"
+          if [ -f database/seeds/seed.sql ]; then
+            mysql -h 127.0.0.1 -u vistra_user -pvistra_password vistra_db < database/seeds/seed.sql
+            echo "✓ Database seeded"
+          else
+            echo "⚠️  No seed file found at database/seeds/seed.sql, skipping seed step"
+          fi
 
       - name: Build application
         env:
