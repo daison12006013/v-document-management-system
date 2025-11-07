@@ -85,10 +85,10 @@ export async function ensureNotSystemAccount(
 /**
  * Validate required fields and return error if missing
  */
-export function validateRequiredFields(
+export const validateRequiredFields = (
   fields: Record<string, any>,
   requiredFields: string[]
-): { error?: NextResponse } {
+): { error?: NextResponse } => {
   const missingFields = requiredFields.filter(field => !fields[field] || (typeof fields[field] === 'string' && fields[field].trim() === ''));
   if (missingFields.length > 0) {
     return {
@@ -99,5 +99,5 @@ export function validateRequiredFields(
     };
   }
   return { error: undefined };
-}
+};
 

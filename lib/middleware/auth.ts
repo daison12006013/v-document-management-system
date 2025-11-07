@@ -57,10 +57,10 @@ export function withAuth<T extends any[]>(
 /**
  * Requires any of the specified permissions (OR logic)
  */
-export function withAnyPermission(
+export const withAnyPermission = (
   permissionNames: string[],
   handler: (request: NextRequest, user: User) => Promise<NextResponse>
-) {
+) => {
   return async (request: NextRequest): Promise<NextResponse> => {
     try {
       const { requireAnyPermission } = await import('@/lib/auth');
@@ -71,5 +71,5 @@ export function withAnyPermission(
       return handleApiError(error, 'Permission check');
     }
   };
-}
+};
 

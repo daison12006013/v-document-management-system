@@ -25,7 +25,7 @@ let permissionsCache: {
     canAccessFiles: boolean
 } | null = null
 
-export function AppSidebarNav({ pathname }: AppSidebarNavProps) {
+export const AppSidebarNav = ({ pathname }: AppSidebarNavProps) => {
     // Initialize state with cached values if available
     const [canAccessDashboard, setCanAccessDashboard] = useState(permissionsCache?.canAccessDashboard ?? false)
     const [canAccessUsers, setCanAccessUsers] = useState(permissionsCache?.canAccessUsers ?? false)
@@ -155,5 +155,5 @@ export function AppSidebarNav({ pathname }: AppSidebarNavProps) {
             </nav>
         </SidebarContent>
     )
-}
+};
 

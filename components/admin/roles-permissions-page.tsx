@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast"
 import { api, ApiError } from "@/lib/api"
 import type { User, Role, Permission } from "@/lib/types"
 
-export function RolesPermissionsPage({ user }: { user: User }) {
+export const RolesPermissionsPage = ({ user }: { user: User }) => {
   const { toast } = useToast()
   const [roles, setRoles] = useState<Role[]>([])
   const [allPermissions, setAllPermissions] = useState<Permission[]>([])
@@ -490,4 +490,4 @@ export function RolesPermissionsPage({ user }: { user: User }) {
       </Dialog>
     </div>
   )
-}
+};

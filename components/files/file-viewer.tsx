@@ -14,7 +14,7 @@ interface FileViewerProps {
   onDownload?: (file: File) => void;
 }
 
-export function FileViewer({ file, isOpen, onClose, onDownload }: FileViewerProps) {
+export const FileViewer = ({ file, isOpen, onClose, onDownload }: FileViewerProps) => {
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -323,4 +323,4 @@ export function FileViewer({ file, isOpen, onClose, onDownload }: FileViewerProp
       </DialogContent>
     </Dialog>
   );
-}
+};

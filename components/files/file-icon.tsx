@@ -29,14 +29,14 @@ const sizeClasses = {
   lg: 'h-8 w-8',
 };
 
-export function FileIcon({
+export const FileIcon = ({
   fileName,
   mimeType,
   type,
   isOpen = false,
   className,
   size = 'md'
-}: FileIconProps) {
+}: FileIconProps) => {
   const sizeClass = sizeClasses[size];
 
   // Folder icons
@@ -173,4 +173,4 @@ export function FileIcon({
 
   // Default file icon
   return <File className={cn(sizeClass, 'text-gray-500', className)} />;
-}
+};

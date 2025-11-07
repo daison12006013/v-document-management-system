@@ -251,11 +251,11 @@ export function successResponse<T>(data: T): ApiSuccessResponse<T> {
 }
 
 // Helper function to create error response
-export function errorResponse(
+export const errorResponse = (
     errorDef: typeof ERRORS[keyof typeof ERRORS],
     customMessage?: string,
     trace?: any
-): ApiErrorResponse {
+): ApiErrorResponse => {
     const isDebug = process.env.APP_DEBUG === 'true' || process.env.NODE_ENV !== 'production';
 
     const response: ApiErrorResponse = {
@@ -273,15 +273,15 @@ export function errorResponse(
     }
 
     return response;
-}
+};
 
 // Helper function to create custom error response
-export function customErrorResponse(
+export const customErrorResponse = (
     alias: string,
     code: number,
     message: string,
     trace?: any
-): ApiErrorResponse {
+): ApiErrorResponse => {
     const isDebug = process.env.APP_DEBUG === 'true' || process.env.NODE_ENV !== 'production';
 
     const response: ApiErrorResponse = {
@@ -298,31 +298,31 @@ export function customErrorResponse(
     }
 
     return response;
-}
+};
 
 // NextResponse helpers (for API route handlers)
 import { NextResponse } from 'next/server';
 
-export function createSuccessResponse<T>(data: T, init?: ResponseInit): NextResponse<ApiSuccessResponse<T>> {
+export const createSuccessResponse = <T>(data: T, init?: ResponseInit): NextResponse<ApiSuccessResponse<T>> => {
     return NextResponse.json(successResponse(data), init);
-}
+};
 
-export function createErrorResponse(
+export const createErrorResponse = (
     errorDef: typeof ERRORS[keyof typeof ERRORS],
     customMessage?: string,
     trace?: any
-): NextResponse<ApiErrorResponse> {
+): NextResponse<ApiErrorResponse> => {
     const errorResp = errorResponse(errorDef, customMessage, trace);
     return NextResponse.json(errorResp, { status: errorResp.data.code });
-}
+};
 
-export function createCustomErrorResponse(
+export const createCustomErrorResponse = (
     alias: string,
     code: number,
     message: string,
     trace?: any
-): NextResponse<ApiErrorResponse> {
+): NextResponse<ApiErrorResponse> => {
     const errorResp = customErrorResponse(alias, code, message, trace);
     return NextResponse.json(errorResp, { status: code });
-}
+};
 

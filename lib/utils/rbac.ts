@@ -11,11 +11,11 @@ import * as rbac from '@/lib/queries/rbac';
  * @param rolePermissions - Array of role permission relations
  * @returns Array of permission objects
  */
-export function mapRolePermissions(
+export const mapRolePermissions = (
   rolePermissions: Array<{ permission: any }>
-): any[] {
+): any[] => {
   return rolePermissions.map(rp => rp.permission).filter(Boolean);
-}
+};
 
 /**
  * Map user roles to role objects
@@ -23,11 +23,11 @@ export function mapRolePermissions(
  * @param userRoles - Array of user role relations
  * @returns Array of role objects
  */
-export function mapUserRoles(
+export const mapUserRoles = (
   userRoles: Array<{ role: any }>
-): any[] {
+): any[] => {
   return userRoles.map(ur => ur.role).filter(Boolean);
-}
+};
 
 /**
  * Map user direct permissions to permission objects
@@ -35,11 +35,11 @@ export function mapUserRoles(
  * @param userPermissions - Array of user permission relations
  * @returns Array of permission objects
  */
-export function mapUserDirectPermissions(
+export const mapUserDirectPermissions = (
   userPermissions: Array<{ permission: any }>
-): any[] {
+): any[] => {
   return userPermissions.map(up => up.permission).filter(Boolean);
-}
+};
 
 /**
  * Validate and get or create a permission
@@ -48,7 +48,7 @@ export function mapUserDirectPermissions(
  * @returns Permission object
  * @throws Error if permission format is invalid
  */
-export async function validateAndGetOrCreatePermission(permissionName: string) {
+export const validateAndGetOrCreatePermission = async (permissionName: string) => {
   // Validate permission format: should be "resource:action" or "resource:*"
   const permissionPattern = /^[a-zA-Z0-9_*]+:[a-zA-Z0-9_*]+$/;
   if (!permissionPattern.test(permissionName)) {
@@ -73,5 +73,5 @@ export async function validateAndGetOrCreatePermission(permissionName: string) {
   }
 
   return permission;
-}
+};
 

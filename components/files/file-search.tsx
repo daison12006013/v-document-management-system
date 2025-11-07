@@ -56,7 +56,7 @@ const SIZE_RANGES = [
   { value: '100+', label: 'More than 100 MB', min: 100 * 1024 * 1024, max: undefined },
 ];
 
-export function FileSearch({ onSearch, className }: FileSearchProps) {
+export const FileSearch = ({ onSearch, className }: FileSearchProps) => {
   const [filters, setFilters] = useState<SearchFilters>({ query: '' });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -341,4 +341,4 @@ export function FileSearch({ onSearch, className }: FileSearchProps) {
       )}
     </div>
   );
-}
+};

@@ -15,7 +15,7 @@ export class ApiError extends Error {
 /**
  * Get CSRF token from cookie (browser-side only)
  */
-function getCsrfTokenFromCookie(): string | null {
+const getCsrfTokenFromCookie = (): string | null => {
     if (typeof document === 'undefined') {
         return null
     }
@@ -28,20 +28,20 @@ function getCsrfTokenFromCookie(): string | null {
         }
     }
     return null
-}
+};
 
 /**
  * Check if the HTTP method requires CSRF protection
  */
-function requiresCsrfToken(method: string): boolean {
+const requiresCsrfToken = (method: string): boolean => {
     return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase())
-}
+};
 
 // Helper function for making API requests
-async function request<T>(
+const request = async <T>(
     url: string,
     options?: RequestInit
-): Promise<T> {
+): Promise<T> => {
     const method = options?.method || 'GET'
     const headers: HeadersInit = {
         "Content-Type": "application/json",
@@ -106,7 +106,7 @@ async function request<T>(
 
     // Return data from standardized format (status: 'ok') or direct data
     return data.status === 'ok' ? data.data : data
-}
+};
 
 // Auth API
 export const auth = {

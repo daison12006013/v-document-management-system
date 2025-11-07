@@ -8,7 +8,7 @@ interface BreadcrumbProps {
   onNavigate: (fileId: string | null) => void
 }
 
-export function Breadcrumb({ items = [], onNavigate }: BreadcrumbProps) {
+export const Breadcrumb = ({ items = [], onNavigate }: BreadcrumbProps) => {
   return (
     <nav className="flex items-center space-x-2 text-sm">
       <Button
@@ -35,5 +35,5 @@ export function Breadcrumb({ items = [], onNavigate }: BreadcrumbProps) {
       ))}
     </nav>
   )
-}
+};
 

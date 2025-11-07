@@ -15,7 +15,7 @@ let storageDriverInstance: StorageDriver | null = null;
  * Get the configured storage driver instance
  * Lazy initialization - creates driver on first call
  */
-export function getStorageDriver(): StorageDriver {
+export const getStorageDriver = (): StorageDriver => {
   if (storageDriverInstance) {
     return storageDriverInstance;
   }
@@ -37,12 +37,12 @@ export function getStorageDriver(): StorageDriver {
   }
 
   return storageDriverInstance;
-}
+};
 
 /**
  * Get a specific storage driver by type (useful when file was stored with a different driver)
  */
-export function getStorageDriverByType(type: 'local' | 's3' | 'r2'): StorageDriver {
+export const getStorageDriverByType = (type: 'local' | 's3' | 'r2'): StorageDriver => {
   switch (type) {
     case 'local':
       return new LocalStorageDriver();
@@ -53,7 +53,7 @@ export function getStorageDriverByType(type: 'local' | 's3' | 'r2'): StorageDriv
     default:
       throw new Error(`Unknown storage driver type: ${type}`);
   }
-}
+};
 
 // Re-export types and utilities
 export * from './types';

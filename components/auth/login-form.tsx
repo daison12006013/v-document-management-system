@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { auth, ApiError } from "@/lib/api"
 
-export function LoginForm() {
+export const LoginForm = () => {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -93,5 +93,5 @@ export function LoginForm() {
       </CardContent>
     </Card>
   )
-}
+};
 

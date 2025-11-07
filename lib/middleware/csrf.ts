@@ -20,14 +20,14 @@ const PROTECTED_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 /**
  * Generate a new CSRF token
  */
-function generateCsrfToken(): string {
+const generateCsrfToken = (): string => {
   return crypto.randomBytes(32).toString('hex');
-}
+};
 
 /**
  * Get or create CSRF token for the current session
  */
-export async function getCsrfToken(): Promise<string> {
+export const getCsrfToken = async (): Promise<string> => {
   const cookieStore = await cookies();
   let token = cookieStore.get(CSRF_TOKEN_COOKIE)?.value;
 
@@ -36,12 +36,12 @@ export async function getCsrfToken(): Promise<string> {
   }
 
   return token;
-}
+};
 
 /**
  * Set CSRF token cookie
  */
-export function setCsrfTokenCookie(response: NextResponse, token: string): void {
+export const setCsrfTokenCookie = (response: NextResponse, token: string): void => {
   const isProduction = env.NODE_ENV === 'production';
 
   response.cookies.set(CSRF_TOKEN_COOKIE, token, {
@@ -51,12 +51,12 @@ export function setCsrfTokenCookie(response: NextResponse, token: string): void 
     maxAge: 60 * 60 * 24 * 7, // 7 days, same as session
     path: '/',
   });
-}
+};
 
 /**
  * Verify CSRF token from request
  */
-async function verifyCsrfToken(request: NextRequest): Promise<boolean> {
+const verifyCsrfToken = async (request: NextRequest): Promise<boolean> => {
   // Only protect state-changing methods
   if (!PROTECTED_METHODS.includes(request.method)) {
     return true;
@@ -81,15 +81,15 @@ async function verifyCsrfToken(request: NextRequest): Promise<boolean> {
     Buffer.from(cookieToken),
     Buffer.from(headerToken)
   );
-}
+};
 
 /**
  * CSRF protection middleware wrapper
  * Supports both simple handlers and Next.js route handlers with params
  */
-export function withCsrfProtection<T extends any[]>(
+export const withCsrfProtection = <T extends any[]>(
   handler: (request: NextRequest, ...args: T) => Promise<NextResponse>
-) {
+) => {
   return async (request: NextRequest, ...args: T): Promise<NextResponse> => {
     // Skip CSRF protection in test mode or when test header is present
     const isTestMode = process.env.NODE_ENV === 'test' ||
@@ -117,14 +117,14 @@ export function withCsrfProtection<T extends any[]>(
 
     return response;
   };
-}
+};
 
 /**
  * Add CSRF token to response headers (for API responses that need it)
  */
-export async function addCsrfTokenToResponse(response: NextResponse): Promise<NextResponse> {
+export const addCsrfTokenToResponse = async (response: NextResponse): Promise<NextResponse> => {
   const token = await getCsrfToken();
   setCsrfTokenCookie(response, token);
   return response;
-}
+};
 

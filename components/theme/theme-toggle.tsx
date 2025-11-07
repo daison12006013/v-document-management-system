@@ -3,7 +3,7 @@
 import { useTheme } from "@/components/theme/theme-provider"
 import { Button } from "@/components/ui/button"
 
-export function ThemeToggle() {
+export const ThemeToggle = () => {
   const { theme, setTheme, mounted } = useTheme()
 
   if (!mounted) {
@@ -79,5 +79,5 @@ export function ThemeToggle() {
       )}
     </Button>
   )
-}
+};
 

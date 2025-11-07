@@ -14,12 +14,12 @@ interface InlineUploadAreaProps {
  * Inline upload area using Uppy Dashboard
  * Enhanced with dedicated upload background and visual indicators
  */
-export function InlineUploadArea({
+export const InlineUploadArea = ({
   parentId,
   onUploadComplete,
   onUploadError,
   className,
-}: InlineUploadAreaProps) {
+}: InlineUploadAreaProps) => {
   return (
     <div className={cn('w-full', className)}>
       <UppyDashboard
@@ -33,4 +33,4 @@ export function InlineUploadArea({
       />
     </div>
   );
-}
+};

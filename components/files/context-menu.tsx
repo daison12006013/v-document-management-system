@@ -36,7 +36,7 @@ interface FileContextMenuProps {
   disabled?: boolean;
 }
 
-export function FileContextMenu({
+export const FileContextMenu = ({
   file,
   children,
   onView,
@@ -49,7 +49,7 @@ export function FileContextMenu({
   onOpenFolder,
   onProperties,
   disabled = false,
-}: FileContextMenuProps) {
+}: FileContextMenuProps) => {
   if (disabled) {
     return <>{children}</>;
   }
@@ -143,4 +143,4 @@ export function FileContextMenu({
       </ContextMenuContent>
     </ContextMenu>
   );
-}
+};

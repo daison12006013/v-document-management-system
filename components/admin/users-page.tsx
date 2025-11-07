@@ -26,7 +26,7 @@ interface UsersPageProps {
   }
 }
 
-export function UsersPage({ user: currentUser }: UsersPageProps) {
+export const UsersPage = ({ user: currentUser }: UsersPageProps) => {
   const { toast } = useToast()
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -1069,5 +1069,5 @@ export function UsersPage({ user: currentUser }: UsersPageProps) {
       </div>
     </>
   )
-}
+};
 

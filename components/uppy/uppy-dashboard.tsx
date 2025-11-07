@@ -19,7 +19,7 @@ interface UppyDashboardProps {
   target?: string | HTMLElement;
 }
 
-export function UppyDashboard({
+export const UppyDashboard = ({
   parentId,
   onUploadComplete,
   onUploadError,
@@ -30,7 +30,7 @@ export function UppyDashboard({
   theme = 'auto',
   className,
   target,
-}: UppyDashboardProps) {
+}: UppyDashboardProps) => {
   const [uppy, setUppy] = useState<Uppy | null>(null);
   const [isClient, setIsClient] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -157,4 +157,4 @@ export function UppyDashboard({
       <Dashboard {...dashboardProps} />
     </div>
   );
-}
+};

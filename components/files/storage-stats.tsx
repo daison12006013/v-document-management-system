@@ -47,7 +47,7 @@ interface StorageStatsProps {
   className?: string;
 }
 
-export function StorageStats({ stats, isLoading = false, className }: StorageStatsProps) {
+export const StorageStats = ({ stats, isLoading = false, className }: StorageStatsProps) => {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -259,4 +259,4 @@ export function StorageStats({ stats, isLoading = false, className }: StorageSta
       </CardContent>
     </Card>
   );
-}
+};

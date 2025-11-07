@@ -10,7 +10,7 @@
  * @param parentId - The parent ID value (can be string, null, undefined, or 'null')
  * @returns Normalized parent ID (string ID or null)
  */
-export function normalizeParentId(parentId: string | null | undefined): string | null | undefined {
+export const normalizeParentId = (parentId: string | null | undefined): string | null | undefined => {
   if (parentId === undefined) {
     return undefined; // Allow undefined to pass through for optional updates
   }
@@ -20,17 +20,17 @@ export function normalizeParentId(parentId: string | null | undefined): string |
   }
 
   return parentId;
-}
+};
 
 /**
  * Normalize parentId from query parameters
  * Specifically handles query param normalization where 'null' is a string
  */
-export function normalizeParentIdFromQuery(parentId: string | null): string | null | undefined {
+export const normalizeParentIdFromQuery = (parentId: string | null): string | null | undefined => {
   if (parentId === null) {
     return undefined;
   }
 
   return parentId === 'null' ? null : parentId;
-}
+};
 

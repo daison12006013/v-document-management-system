@@ -21,7 +21,7 @@ const SESSION_EXPIRY_DAYS = 7;
 /**
  * Create a secure JWT session token
  */
-function createSessionToken(sessionData: SessionData): string {
+const createSessionToken = (sessionData: SessionData): string => {
   const expiresIn = SESSION_EXPIRY_DAYS * 24 * 60 * 60; // seconds
 
   return jwt.sign(
@@ -38,12 +38,12 @@ function createSessionToken(sessionData: SessionData): string {
       audience: 'vistra-app',
     }
   );
-}
+};
 
 /**
  * Verify and decode a JWT session token
  */
-function verifySessionToken(token: string): SessionData | null {
+const verifySessionToken = (token: string): SessionData | null => {
   try {
     const decoded = jwt.verify(token, env.SESSION_SECRET, {
       issuer: 'vistra-app',
@@ -64,16 +64,16 @@ function verifySessionToken(token: string): SessionData | null {
     // Token invalid, expired, or malformed
     return null;
   }
-}
+};
 
 /**
  * Set session cookie with JWT token
  */
-export function setSessionCookie(
+export const setSessionCookie = (
   response: NextResponse,
   sessionData: SessionData,
   options?: { secure?: boolean }
-): void {
+): void => {
   const token = createSessionToken(sessionData);
   const isProduction = env.NODE_ENV === 'production';
   const secure = options?.secure ?? isProduction;
@@ -85,12 +85,12 @@ export function setSessionCookie(
     maxAge: SESSION_EXPIRY_DAYS * 24 * 60 * 60,
     path: '/',
   });
-}
+};
 
 /**
  * Clear session cookie
  */
-export function clearSessionCookie(response: NextResponse): void {
+export const clearSessionCookie = (response: NextResponse): void => {
   response.cookies.set(SESSION_COOKIE_NAME, '', {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
@@ -98,12 +98,12 @@ export function clearSessionCookie(response: NextResponse): void {
     maxAge: 0,
     path: '/',
   });
-}
+};
 
 /**
  * Get session data from cookie
  */
-export async function getSessionFromCookie(): Promise<SessionData | null> {
+export const getSessionFromCookie = async (): Promise<SessionData | null> => {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
@@ -116,5 +116,5 @@ export async function getSessionFromCookie(): Promise<SessionData | null> {
   } catch (error) {
     return null;
   }
-}
+};
 

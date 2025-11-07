@@ -14,7 +14,7 @@ interface AdminLayoutProps {
   children: React.ReactNode
 }
 
-export function AdminLayout({ user, children }: AdminLayoutProps) {
+export const AdminLayout = ({ user, children }: AdminLayoutProps) => {
   const router = useRouter()
   const pathname = usePathname()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -80,5 +80,5 @@ export function AdminLayout({ user, children }: AdminLayoutProps) {
       </div>
     </div>
   )
-}
+};
 

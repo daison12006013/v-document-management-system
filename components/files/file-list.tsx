@@ -19,7 +19,7 @@ interface FileListProps {
   canDelete?: boolean;
 }
 
-export function FileList({
+export const FileList = ({
   files,
   viewMode = 'grid',
   onOpen,
@@ -33,7 +33,7 @@ export function FileList({
   canDownload = false,
   canUpdate = false,
   canDelete = false,
-}: FileListProps) {
+}: FileListProps) => {
   // Separate folders and files
   const folders = files.filter(file => file.type === 'folder');
   const fileItems = files.filter(file => file.type === 'file');
@@ -107,4 +107,4 @@ export function FileList({
       )}
     </div>
   );
-}
+};

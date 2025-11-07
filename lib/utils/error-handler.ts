@@ -10,10 +10,10 @@ import { logger } from '@/lib/logger';
 /**
  * Extract error trace information for logging
  */
-function getErrorTrace(error: unknown): {
+const getErrorTrace = (error: unknown): {
   message: string;
   stack?: string;
-} {
+} => {
   if (error instanceof Error) {
     return {
       message: error.message,
@@ -23,12 +23,12 @@ function getErrorTrace(error: unknown): {
   return {
     message: String(error),
   };
-}
+};
 
 /**
  * Format validation error messages from error details
  */
-function formatValidationError(error: ValidationError): string {
+const formatValidationError = (error: ValidationError): string => {
   let errorMessage = 'Validation failed';
   if (error.details && Array.isArray(error.details)) {
     const messages = (error.details as any[])
@@ -39,7 +39,7 @@ function formatValidationError(error: ValidationError): string {
     }
   }
   return errorMessage;
-}
+};
 
 /**
  * Handle common errors in API route handlers
@@ -54,10 +54,10 @@ function formatValidationError(error: ValidationError): string {
  * }
  * ```
  */
-export function handleApiError(
+export const handleApiError = (
   error: unknown,
   context: string = 'API operation'
-): NextResponse {
+): NextResponse => {
   // Handle custom error classes
   if (error instanceof UnauthorizedError) {
     return createErrorResponse(ERRORS.UNAUTHORIZED);
@@ -98,6 +98,6 @@ export function handleApiError(
     undefined,
     error instanceof Error ? trace : error
   );
-}
+};
 
 

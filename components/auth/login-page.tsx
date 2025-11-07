@@ -3,7 +3,7 @@
 import { LoginForm } from "@/components/auth/login-form"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 
-export function LoginPage() {
+export const LoginPage = () => {
   return (
     <main className="flex min-h-screen bg-background">
       {/* Theme toggle button */}
@@ -42,5 +42,5 @@ export function LoginPage() {
       </div>
     </main>
   )
-}
+};
 

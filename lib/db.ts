@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger';
 // Database connection pool
 let pool: mysql.Pool | null = null;
 
-function getPool(): mysql.Pool {
+const getPool = (): mysql.Pool => {
   if (!pool) {
     // Parse MySQL connection string
     // Format: mysql://user:password@host:port/database
@@ -38,12 +38,12 @@ function getPool(): mysql.Pool {
   }
 
   return pool;
-}
+};
 
 // Drizzle database instance
 let dbInstance: ReturnType<typeof drizzle<typeof schema, mysql.Pool>> | null = null;
 
-function getDb() {
+const getDb = () => {
   if (!dbInstance) {
     const pool = getPool();
     // Use 'default' mode which properly handles connection pools
@@ -56,7 +56,7 @@ function getDb() {
     });
   }
   return dbInstance;
-}
+};
 
 // Export default db instance for convenience
 export const db = getDb();

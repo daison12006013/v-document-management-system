@@ -14,7 +14,7 @@ interface DashboardData {
   recentActivities?: Activity[]
 }
 
-export function AdminDashboard({ user }: { user: User }) {
+export const AdminDashboard = ({ user }: { user: User }) => {
   const [dashboardData, setDashboardData] = useState<DashboardData>({})
   const [isLoading, setIsLoading] = useState(true)
 
@@ -136,5 +136,5 @@ export function AdminDashboard({ user }: { user: User }) {
       </div>
     </AdminLayout>
   )
-}
+};
 

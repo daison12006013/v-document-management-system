@@ -29,7 +29,7 @@ interface TreeNode {
   isLoading: boolean;
 }
 
-export function FolderTree({ currentFolderId, onFolderSelect, onFileSelect, className, refreshTrigger, refreshFolderId }: FolderTreeProps) {
+export const FolderTree = ({ currentFolderId, onFolderSelect, onFileSelect, className, refreshTrigger, refreshFolderId }: FolderTreeProps) => {
   const [tree, setTree] = useState<TreeNode>({
     id: null,
     name: 'Root',
@@ -282,4 +282,4 @@ export function FolderTree({ currentFolderId, onFolderSelect, onFileSelect, clas
       </ScrollArea>
     </div>
   );
-}
+};

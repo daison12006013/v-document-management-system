@@ -30,7 +30,7 @@ interface StorageConfig {
 /**
  * Get storage configuration from environment variables
  */
-export function getStorageConfig(): StorageConfig {
+export const getStorageConfig = (): StorageConfig => {
   const defaultDriver = (process.env.STORAGE_DRIVER || 'local') as StorageDriverType;
 
   return {
@@ -54,26 +54,26 @@ export function getStorageConfig(): StorageConfig {
       },
     },
   };
-}
+};
 
 /**
  * Get file upload limits from environment variables
  */
-export function getUploadLimits() {
+export const getUploadLimits = () => {
   return {
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '104857600', 10), // 100MB default
     maxFilesPerUpload: parseInt(process.env.MAX_FILES_PER_UPLOAD || '10', 10),
     allowedFileTypes: process.env.ALLOWED_FILE_TYPES || '*', // * for all, or comma-separated list
   };
-}
+};
 
 /**
  * Get signed URL configuration
  */
-export function getSignedUrlConfig() {
+export const getSignedUrlConfig = () => {
   return {
     secret: process.env.SIGNED_URL_SECRET || process.env.NEXTAUTH_SECRET || 'change-this-secret',
     expiry: parseInt(process.env.SIGNED_URL_EXPIRY || '3600', 10), // 1 hour default
   };
-}
+};
 

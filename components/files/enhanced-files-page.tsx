@@ -58,7 +58,7 @@ type ViewMode = 'grid' | 'list';
 type SortField = 'name' | 'size' | 'type' | 'updatedAt' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
 
-export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
+export const EnhancedFilesPage = ({ user }: EnhancedFilesPageProps) => {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -826,4 +826,4 @@ export function EnhancedFilesPage({ user }: EnhancedFilesPageProps) {
       />
     </div>
   );
-}
+};

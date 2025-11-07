@@ -29,7 +29,7 @@ interface UploadProgressProps {
   className?: string;
 }
 
-export function UploadProgress({
+export const UploadProgress = ({
   uploads,
   onCancel,
   onPause,
@@ -37,7 +37,7 @@ export function UploadProgress({
   onRetry,
   onClear,
   className,
-}: UploadProgressProps) {
+}: UploadProgressProps) => {
   const [isMinimized, setIsMinimized] = useState(false);
 
   // Auto-minimize when all uploads are complete
@@ -251,4 +251,4 @@ export function UploadProgress({
       )}
     </Card>
   );
-}
+};

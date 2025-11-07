@@ -24,12 +24,12 @@ const initialState: ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
-export function ThemeProvider({
+export const ThemeProvider = ({
   children,
   defaultTheme = "dark",
   storageKey = "vistra-ui-theme",
   ...props
-}: ThemeProviderProps) {
+}: ThemeProviderProps) => {
   const [theme, setTheme] = useState<Theme>(defaultTheme)
   const [mounted, setMounted] = useState(false)
 
@@ -64,7 +64,7 @@ export function ThemeProvider({
       {children}
     </ThemeProviderContext.Provider>
   )
-}
+};
 
 export const useTheme = () => {
   const context = useContext(ThemeProviderContext)

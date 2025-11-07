@@ -31,7 +31,7 @@ interface UppyConfig {
 /**
  * Get CSRF token from cookie (browser-side only)
  */
-function getCsrfTokenFromCookie(): string | null {
+const getCsrfTokenFromCookie = (): string | null => {
   if (typeof document === 'undefined') {
     return null;
   }
@@ -44,12 +44,12 @@ function getCsrfTokenFromCookie(): string | null {
     }
   }
   return null;
-}
+};
 
 /**
  * Get upload limits from environment or defaults
  */
-export function getUploadLimits() {
+export const getUploadLimits = () => {
   const maxFileSize = process.env.MAX_FILE_SIZE
     ? parseInt(process.env.MAX_FILE_SIZE, 10)
     : 100 * 1024 * 1024; // 100MB default
@@ -69,12 +69,12 @@ export function getUploadLimits() {
     maxFilesPerUpload,
     allowedFileTypes,
   };
-}
+};
 
 /**
  * Create a new Uppy instance with configuration
  */
-export function createUppyInstance(config: UppyConfig = {}) {
+export const createUppyInstance = (config: UppyConfig = {}) => {
   const limits = getUploadLimits();
 
   const uppy = new Uppy({
@@ -246,5 +246,5 @@ export function createUppyInstance(config: UppyConfig = {}) {
   }
 
   return uppy;
-}
+};
 

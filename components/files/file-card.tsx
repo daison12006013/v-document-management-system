@@ -46,7 +46,7 @@ interface FileCardProps {
   onSelect?: (file: File, selected: boolean) => void;
 }
 
-export function FileCard({
+export const FileCard = ({
   file,
   viewMode = 'grid',
   onOpen,
@@ -57,7 +57,7 @@ export function FileCard({
   onShare,
   isSelected = false,
   onSelect
-}: FileCardProps) {
+}: FileCardProps) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [newName, setNewName] = useState(file.name);
@@ -342,4 +342,4 @@ export function FileCard({
       </Dialog>
     </>
   );
-}
+};
