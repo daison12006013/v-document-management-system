@@ -108,7 +108,7 @@ test.describe('Users Management', () => {
     const createButton = page.getByRole('button', { name: /create|add|new.*user/i }).first()
 
     if (!(await createButton.isVisible({ timeout: 3000 }).catch(() => false))) {
-      test.skip('Create user button not available')
+      test.skip(true, 'Create user button not available')
       return
     }
 
@@ -166,10 +166,10 @@ test.describe('Users Management', () => {
           await closeButton.click()
         }
       } else {
-        test.skip('No roles available to assign')
+        test.skip(true, 'No roles available to assign')
       }
     } else {
-      test.skip('Newly created user not found in table')
+      test.skip(true, 'Newly created user not found in table')
     }
   })
 
@@ -181,7 +181,7 @@ test.describe('Users Management', () => {
     const createButton = page.getByRole('button', { name: /create|add|new.*user/i }).first()
 
     if (!(await createButton.isVisible({ timeout: 3000 }).catch(() => false))) {
-      test.skip('Create user button not available')
+      test.skip(true, 'Create user button not available')
       return
     }
 
@@ -239,10 +239,10 @@ test.describe('Users Management', () => {
           await closeButton.click()
         }
       } else {
-        test.skip('No permissions available to assign')
+        test.skip(true, 'No permissions available to assign')
       }
     } else {
-      test.skip('Newly created user not found in table')
+      test.skip(true, 'Newly created user not found in table')
     }
   })
 })
