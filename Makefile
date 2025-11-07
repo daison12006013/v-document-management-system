@@ -172,7 +172,7 @@ clean: ## Remove build artifacts, node_modules, and database tables (with confir
 	@echo "${GREEN}✓ Complete cleanup finished${NC}"
 
 ## Setup
-setup: install db-start db-push db-seed ## Complete setup (install + start DB + push schema + seed)
+setup: install _setup-env db-start db-push db-seed ## Complete setup (install + start DB + push schema + seed)
 	@echo "${GREEN}"
 	@echo "╔════════════════════════════════════════════════════╗"
 	@echo "║     Setup complete!                                ║"
@@ -180,3 +180,22 @@ setup: install db-start db-push db-seed ## Complete setup (install + start DB + 
 	@echo "║  Run 'make dev' to start the development server    ║"
 	@echo "╚════════════════════════════════════════════════════╝"
 	@echo "${NC}"
+
+_setup-env: ## Internal: Setup .env.local file
+	@if [ ! -f .env.local ]; then \
+		echo "${BLUE}Creating .env.local from .env.example...${NC}"; \
+		cp .env.example .env.local; \
+		echo "${BLUE}Randomizing SESSION_SECRET...${NC}"; \
+		SESSION_SECRET=$$(openssl rand -hex 32); \
+		if [ -z "$$SESSION_SECRET" ]; then \
+			SESSION_SECRET=$$(cat /dev/urandom | tr -dc 'a-f0-9' | fold -w 64 | head -n 1); \
+		fi; \
+		if [ "$$(uname)" = "Darwin" ]; then \
+			sed -i '' "s|^SESSION_SECRET=.*|SESSION_SECRET=$$SESSION_SECRET|" .env.local; \
+		else \
+			sed -i "s|^SESSION_SECRET=.*|SESSION_SECRET=$$SESSION_SECRET|" .env.local; \
+		fi; \
+		echo "${GREEN}✓ .env.local created with randomized SESSION_SECRET${NC}"; \
+	else \
+		echo "${YELLOW}⚠ .env.local already exists, skipping...${NC}"; \
+	fi

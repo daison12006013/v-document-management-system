@@ -11,8 +11,8 @@ import { logResourceUpdated, logResourceDeleted } from '@/lib/utils/activities';
 
 // GET /api/files/[id] - Get file/folder details
 export const GET = withAuth(async (
-  request: NextRequest,
-  user,
+  _request: NextRequest,
+  _user,
   context: { params: Promise<{ id: string }> }
 ) => {
   try {
@@ -83,8 +83,8 @@ export const PUT = withCsrfProtection(putHandler);
 
 // DELETE /api/files/[id] - Delete file/folder
 const deleteHandler = withAuth(async (
-    request: NextRequest,
-    user,
+    _request: NextRequest,
+    _user,
     context: { params: Promise<{ id: string }> }
 ) => {
   try {

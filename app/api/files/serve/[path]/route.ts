@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
-import { join } from 'path';
 import { LocalStorageDriver } from '@/lib/storage/drivers/local';
 import { getSignedUrlConfig } from '@/lib/storage/config';
 import { logger } from '@/lib/logger';

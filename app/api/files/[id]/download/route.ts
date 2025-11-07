@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
-import * as fileQueries from '@/lib/queries/files';
+import { NextRequest } from 'next/server';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 import { withAuth } from '@/lib/middleware/auth';
 import { handleApiError } from '@/lib/utils/error-handler';
@@ -7,8 +6,8 @@ import { ensureFileExists } from '@/lib/utils/validation';
 
 // GET /api/files/[id]/download - Get signed download URL
 export const GET = withAuth(async (
-  request: NextRequest,
-  user,
+  _request: NextRequest,
+  _user,
   context: { params: Promise<{ id: string }> }
 ) => {
   try {

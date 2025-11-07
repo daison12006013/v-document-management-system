@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import * as rbac from "@/lib/queries/rbac"
-import { requirePermission, requireAnyPermission } from "@/lib/auth"
+import { requireAnyPermission } from "@/lib/auth"
 import { logResourceCreated } from '@/lib/utils/activities'
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses'
-import { logger } from '@/lib/logger'
 import { withCsrfProtection } from '@/lib/middleware/csrf'
 import { withAnyPermission } from '@/lib/middleware/auth'
 import { handleApiError } from '@/lib/utils/error-handler'
@@ -14,7 +13,7 @@ import { validateAndGetOrCreatePermission, mapRolePermissions } from '@/lib/util
 // (users:write is allowed because they need to see available roles when managing user roles)
 export const GET = withAnyPermission(
   ['roles:read', 'roles:*', 'users:write', 'users:*', '*:*'],
-  async (request: NextRequest, user) => {
+  async (_request: NextRequest, _user) => {
     try {
       const roles = await rbac.listRoles()
 

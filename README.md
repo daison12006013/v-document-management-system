@@ -185,7 +185,6 @@ make start
 │   └── seeds/             # Database seed scripts
 │       └── seed.sql       # Initial data seeding
 ├── scripts/               # Development scripts
-│   └── dev-with-db.ts     # Auto-setup dev script
 ├── instrumentation.ts     # Next.js instrumentation (auto-connects DB)
 ├── public/                # Static assets
 ├── vitest.config.ts       # Vitest configuration

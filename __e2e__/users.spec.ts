@@ -99,6 +99,152 @@ test.describe('Users Management', () => {
       await expect(page.getByText(/admin/i)).toBeVisible()
     }
   })
+
+  test('should assign a role to a new user', async ({ page }) => {
+    await page.goto('/users')
+    await page.waitForLoadState('networkidle')
+
+    // First, create a new user
+    const createButton = page.getByRole('button', { name: /create|add|new.*user/i }).first()
+
+    if (!(await createButton.isVisible({ timeout: 3000 }).catch(() => false))) {
+      test.skip('Create user button not available')
+      return
+    }
+
+    await createButton.click()
+
+    const testEmail = `test-role-${Date.now()}@example.com`
+    const testName = 'Test User for Role Assignment'
+
+    await page.getByPlaceholder(/email/i).or(page.getByLabel(/email/i)).fill(testEmail)
+    await page.getByPlaceholder(/name/i).or(page.getByLabel(/name/i)).fill(testName)
+    await page.getByPlaceholder(/password/i).or(page.getByLabel(/password/i)).fill('TestPassword123!')
+
+    // Submit form
+    await page.getByRole('button', { name: /create|submit|save/i }).click()
+
+    // Wait for user to be created
+    await expect(
+      page.locator(`text=/${testEmail}/i`).or(
+        page.locator('text=/success|created|saved/i')
+      ).first()
+    ).toBeVisible({ timeout: 5000 })
+
+    // Wait a bit for the user to appear in the list
+    await page.waitForTimeout(1000)
+
+    // Find the newly created user in the table and click the Roles button
+    const userRow = page.locator('tr').filter({ hasText: testEmail }).first()
+
+    if (await userRow.isVisible({ timeout: 3000 }).catch(() => false)) {
+      // Click the Roles button for this user
+      const rolesButton = userRow.getByRole('button', { name: /roles/i }).first()
+      await rolesButton.click()
+
+      // Wait for roles dialog to open
+      await page.waitForTimeout(500)
+
+      // Look for available roles to assign
+      const assignButtons = page.getByRole('button', { name: /assign/i })
+      const assignButtonCount = await assignButtons.count()
+
+      if (assignButtonCount > 0) {
+        // Click the first available Assign button
+        await assignButtons.first().click()
+
+        // Wait for role to be assigned - look for success message or role badge
+        await expect(
+          page.locator('text=/role.*assigned|success/i').or(
+            page.locator('[class*="badge"], [class*="role"]')
+          ).first()
+        ).toBeVisible({ timeout: 5000 })
+
+        // Close the dialog
+        const closeButton = page.getByRole('button', { name: /close/i }).first()
+        if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await closeButton.click()
+        }
+      } else {
+        test.skip('No roles available to assign')
+      }
+    } else {
+      test.skip('Newly created user not found in table')
+    }
+  })
+
+  test('should assign a permission to a new user', async ({ page }) => {
+    await page.goto('/users')
+    await page.waitForLoadState('networkidle')
+
+    // First, create a new user
+    const createButton = page.getByRole('button', { name: /create|add|new.*user/i }).first()
+
+    if (!(await createButton.isVisible({ timeout: 3000 }).catch(() => false))) {
+      test.skip('Create user button not available')
+      return
+    }
+
+    await createButton.click()
+
+    const testEmail = `test-perm-${Date.now()}@example.com`
+    const testName = 'Test User for Permission Assignment'
+
+    await page.getByPlaceholder(/email/i).or(page.getByLabel(/email/i)).fill(testEmail)
+    await page.getByPlaceholder(/name/i).or(page.getByLabel(/name/i)).fill(testName)
+    await page.getByPlaceholder(/password/i).or(page.getByLabel(/password/i)).fill('TestPassword123!')
+
+    // Submit form
+    await page.getByRole('button', { name: /create|submit|save/i }).click()
+
+    // Wait for user to be created
+    await expect(
+      page.locator(`text=/${testEmail}/i`).or(
+        page.locator('text=/success|created|saved/i')
+      ).first()
+    ).toBeVisible({ timeout: 5000 })
+
+    // Wait a bit for the user to appear in the list
+    await page.waitForTimeout(1000)
+
+    // Find the newly created user in the table and click the Permissions button
+    const userRow = page.locator('tr').filter({ hasText: testEmail }).first()
+
+    if (await userRow.isVisible({ timeout: 3000 }).catch(() => false)) {
+      // Click the Permissions button for this user (might be "Perms" button)
+      const permsButton = userRow.getByRole('button', { name: /perms|permissions/i }).first()
+      await permsButton.click()
+
+      // Wait for permissions dialog to open
+      await page.waitForTimeout(500)
+
+      // Look for available permissions to assign
+      const assignButtons = page.getByRole('button', { name: /assign/i })
+      const assignButtonCount = await assignButtons.count()
+
+      if (assignButtonCount > 0) {
+        // Click the first available Assign button
+        await assignButtons.first().click()
+
+        // Wait for permission to be assigned - look for success message or permission badge
+        await expect(
+          page.locator('text=/permission.*assigned|success/i').or(
+            page.locator('[class*="badge"], [class*="permission"]')
+          ).first()
+        ).toBeVisible({ timeout: 5000 })
+
+        // Close the dialog
+        const closeButton = page.getByRole('button', { name: /close/i }).first()
+        if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await closeButton.click()
+        }
+      } else {
+        test.skip('No permissions available to assign')
+      }
+    } else {
+      test.skip('Newly created user not found in table')
+    }
+  })
 })
 
 test.describe('Users Management - Permissions', () => {
@@ -113,4 +259,3 @@ test.describe('Users Management - Permissions', () => {
     await expect(page.getByLabel(/email/i)).toBeVisible({ timeout: 5000 })
   })
 })
-

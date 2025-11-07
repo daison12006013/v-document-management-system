@@ -8,11 +8,11 @@ import type { User } from '@/lib/types';
 import { requireAuth, requirePermission } from '@/lib/auth';
 import { handleApiError } from '@/lib/utils/error-handler';
 
-export interface AuthContext {
+interface AuthContext {
   user: User;
 }
 
-export interface AuthMiddlewareOptions {
+interface AuthMiddlewareOptions {
   requiredPermission?: {
     resource: string;
     action: string;

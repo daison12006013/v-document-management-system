@@ -5,14 +5,12 @@
     "next.config.{js,ts}",
     "instrumentation.{js,ts}",
     "tailwind.config.{js,ts}",
-    "drizzle.config.{js,ts}",
-    "scripts/**/*.{js,ts}"
+    "drizzle.config.{js,ts}"
   ],
   "project": [
     "app/**/*.{js,ts,jsx,tsx}",
     "components/**/*.{js,ts,jsx,tsx}",
-    "lib/**/*.{js,ts,jsx,tsx}",
-    "scripts/**/*.{js,ts}"
+    "lib/**/*.{js,ts,jsx,tsx}"
   ],
   "ignore": [
     "**/*.d.ts",
@@ -33,14 +31,12 @@
         "next.config.{js,ts}",
         "instrumentation.{js,ts}",
         "tailwind.config.{js,ts}",
-        "drizzle.config.{js,ts}",
-        "scripts/**/*.{js,ts}"
+        "drizzle.config.{js,ts}"
       ],
       "project": [
         "app/**/*.{js,ts,jsx,tsx}",
         "components/**/*.{js,ts,jsx,tsx}",
-        "lib/**/*.{js,ts,jsx,tsx}",
-        "scripts/**/*.{js,ts}"
+        "lib/**/*.{js,ts,jsx,tsx}"
       ]
     }
   }

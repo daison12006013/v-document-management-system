@@ -1,7 +1,6 @@
 import { count } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { users, roles, permissions } from '@/database/schema';
-import { getRecentActivities } from './activities';
 
 // Count users
 export async function countUsers() {

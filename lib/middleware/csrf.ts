@@ -20,7 +20,7 @@ const PROTECTED_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 /**
  * Generate a new CSRF token
  */
-export function generateCsrfToken(): string {
+function generateCsrfToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 

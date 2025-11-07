@@ -1,12 +1,9 @@
-import { permissions } from '@/lib/api';
-import { NextRequest, NextResponse } from 'next/server';
-import { requirePermission, isSystemAccount, getCurrentUser } from '@/lib/auth';
+import { NextRequest } from 'next/server';
 import * as userQueries from '@/lib/queries/users';
 import { logResourceUpdated, logResourceDeleted } from '@/lib/utils/activities';
 import { ensureUserExists, ensureNotSystemAccount } from '@/lib/utils/validation';
 import { validateRequiredFields } from '@/lib/utils/validation';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
-import { logger } from '@/lib/logger';
 import { withCsrfProtection } from '@/lib/middleware/csrf';
 import { excludePassword } from '@/lib/utils/user';
 import { handleApiError } from '@/lib/utils/error-handler';
@@ -15,8 +12,8 @@ import { mapUserRoles, mapUserDirectPermissions } from '@/lib/utils/rbac';
 
 // GET /api/users/[id] - Get a specific user
 export const GET = withAuth(async (
-    request: NextRequest,
-    user,
+    _request: NextRequest,
+    _user,
     context: { params: Promise<{ id: string }> }
 ) => {
     const { id } = await context.params;
@@ -101,7 +98,7 @@ export const PUT = withCsrfProtection(putHandler);
 
 // DELETE /api/users/[id] - Delete a user
 const deleteHandler = withAuth(async (
-    request: NextRequest,
+    _request: NextRequest,
     user,
     context: { params: Promise<{ id: string }> }
 ) => {

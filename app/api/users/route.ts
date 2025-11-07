@@ -1,15 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getCurrentUser } from '@/lib/auth';
 import * as userQueries from '@/lib/queries/users';
-import * as rbacQueries from '@/lib/queries/rbac';
 import { logResourceCreated } from '@/lib/utils/activities';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
 import { withAuth } from '@/lib/middleware/auth';
 import { validateRequest } from '@/lib/validations/middleware';
 import { createUserSchema } from '@/lib/validations/schemas';
 import { logger } from '@/lib/logger';
-import { ValidationError } from '@/lib/errors';
 import { withCsrfProtection } from '@/lib/middleware/csrf';
 import { excludePassword } from '@/lib/utils/user';
 import { mapUserRoles, mapUserDirectPermissions } from '@/lib/utils/rbac';
@@ -17,7 +15,7 @@ import { handleApiError } from '@/lib/utils/error-handler';
 import type { User } from '@/lib/types';
 
 // GET /api/users - List all users
-export const GET = withAuth(async (request: NextRequest, user) => {
+export const GET = withAuth(async (_request: NextRequest, _user) => {
     try {
         const usersList = await userQueries.listUsers();
 

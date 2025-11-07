@@ -40,7 +40,7 @@ const envSchema = z.object({
   AWS_R2_ACCOUNT_ID: z.string().optional(),
 });
 
-export type EnvConfig = z.infer<typeof envSchema>;
+type EnvConfig = z.infer<typeof envSchema>;
 
 let env: EnvConfig;
 

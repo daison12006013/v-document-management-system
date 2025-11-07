@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { getCsrfToken, setCsrfTokenCookie } from '@/lib/middleware/csrf';
 import { createSuccessResponse } from '@/lib/error_responses';
 

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { randomUUID } from 'crypto';
 import * as fileQueries from '@/lib/queries/files';
 import { getStorageDriver } from '@/lib/storage';
@@ -7,13 +7,13 @@ import { logger } from '@/lib/logger';
 import { withCsrfProtection } from '@/lib/middleware/csrf';
 import { withAuth } from '@/lib/middleware/auth';
 import { handleApiError } from '@/lib/utils/error-handler';
-import { normalizeParentId, normalizeParentIdFromQuery } from '@/lib/utils/files';
+import { normalizeParentId } from '@/lib/utils/files';
 import { parsePaginationParams, parseParentIdFromQuery, parseFileTypeFromQuery } from '@/lib/utils/query-params';
 import { logResourceCreated } from '@/lib/utils/activities';
 import { validateRequiredFields } from '@/lib/utils/validation';
 
 // GET /api/files - List files and folders
-export const GET = withAuth(async (request: NextRequest, user) => {
+export const GET = withAuth(async (request: NextRequest, _user) => {
   try {
     const { limit, offset } = parsePaginationParams(request);
     const parentId = parseParentIdFromQuery(request);

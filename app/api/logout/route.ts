@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { logActivity } from '@/lib/activities';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';

@@ -3,7 +3,7 @@
  * All error codes used throughout the API should be defined here
  */
 
-export interface ErrorResponse {
+interface ErrorResponse {
     alias: string;
     code: number;
     message: string;
@@ -20,7 +20,7 @@ export interface ApiErrorResponse {
     data: ErrorResponse;
 }
 
-export type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse;
+type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 // Error definitions
 export const ERRORS = {

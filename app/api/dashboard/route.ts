@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import * as rbacQueries from '@/lib/queries/rbac';
 import * as dashboardQueries from '@/lib/queries/dashboard';

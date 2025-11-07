@@ -3,7 +3,6 @@ import * as rbac from "@/lib/queries/rbac"
 import { requireAnyPermission } from "@/lib/auth"
 import { logResourceUpdated, logResourceDeleted } from '@/lib/utils/activities'
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses'
-import { logger } from '@/lib/logger'
 import { withCsrfProtection } from '@/lib/middleware/csrf'
 import { withAuth } from '@/lib/middleware/auth'
 import { handleApiError } from '@/lib/utils/error-handler'
@@ -11,8 +10,8 @@ import { validateAndGetOrCreatePermission, mapRolePermissions } from '@/lib/util
 
 // GET /api/roles/[id] - Get a single role
 export const GET = withAuth(async (
-  request: NextRequest,
-  user,
+  _request: NextRequest,
+  _user,
   context: { params: Promise<{ id: string }> }
 ) => {
   try {
@@ -133,8 +132,8 @@ const putHandler = withAuth(async (
 
 // DELETE /api/roles/[id] - Delete a role
 const deleteHandler = withAuth(async (
-  request: NextRequest,
-  user,
+  _request: NextRequest,
+  _user,
   context: { params: Promise<{ id: string }> }
 ) => {
   try {
@@ -152,7 +151,7 @@ const deleteHandler = withAuth(async (
       resourceType: 'role',
       resourceId: id,
       resourceName: role.name,
-      userId: user.id,
+      userId: _user.id,
       metadata: {
         roleId: id,
         roleName: role.name,

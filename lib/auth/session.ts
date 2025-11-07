@@ -8,7 +8,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { env } from '@/lib/config/env';
 
-export interface SessionData {
+interface SessionData {
   userId: string;
   email: string;
   name: string;
@@ -21,7 +21,7 @@ const SESSION_EXPIRY_DAYS = 7;
 /**
  * Create a secure JWT session token
  */
-export function createSessionToken(sessionData: SessionData): string {
+function createSessionToken(sessionData: SessionData): string {
   const expiresIn = SESSION_EXPIRY_DAYS * 24 * 60 * 60; // seconds
 
   return jwt.sign(
@@ -43,7 +43,7 @@ export function createSessionToken(sessionData: SessionData): string {
 /**
  * Verify and decode a JWT session token
  */
-export function verifySessionToken(token: string): SessionData | null {
+function verifySessionToken(token: string): SessionData | null {
   try {
     const decoded = jwt.verify(token, env.SESSION_SECRET, {
       issuer: 'vistra-app',

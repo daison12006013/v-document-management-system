@@ -5,7 +5,7 @@
 
 import { env } from './config/env';
 
-export interface LogContext {
+interface LogContext {
   [key: string]: unknown;
 }
 

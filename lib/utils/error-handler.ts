@@ -10,7 +10,7 @@ import { logger } from '@/lib/logger';
 /**
  * Extract error trace information for logging
  */
-export function getErrorTrace(error: unknown): {
+function getErrorTrace(error: unknown): {
   message: string;
   stack?: string;
 } {
@@ -28,7 +28,7 @@ export function getErrorTrace(error: unknown): {
 /**
  * Format validation error messages from error details
  */
-export function formatValidationError(error: ValidationError): string {
+function formatValidationError(error: ValidationError): string {
   let errorMessage = 'Validation failed';
   if (error.details && Array.isArray(error.details)) {
     const messages = (error.details as any[])
@@ -100,27 +100,4 @@ export function handleApiError(
   );
 }
 
-/**
- * Wrapper for API route handlers that automatically handles errors
- * Simplifies error handling in route handlers
- *
- * Usage:
- * ```ts
- * export const GET = withErrorHandling(async (request) => {
- *   // handler logic - no try-catch needed
- * }, 'Get resource');
- * ```
- */
-export function withErrorHandling<T extends any[]>(
-  handler: (...args: T) => Promise<NextResponse>,
-  context: string = 'API handler'
-) {
-  return async (...args: T): Promise<NextResponse> => {
-    try {
-      return await handler(...args);
-    } catch (error) {
-      return handleApiError(error, context);
-    }
-  };
-}
 

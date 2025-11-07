@@ -9,7 +9,7 @@ import { handleApiError } from '@/lib/utils/error-handler'
 // (users:write is allowed because they need to see available permissions when managing user permissions)
 export const GET = withAnyPermission(
   ['permissions:read', 'permissions:*', 'users:write', 'users:*', '*:*'],
-  async (request: NextRequest, user) => {
+  async (_request: NextRequest, _user) => {
     try {
       const permissions = await rbac.listPermissions()
       return createSuccessResponse(permissions)
