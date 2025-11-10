@@ -13,6 +13,10 @@ export async function GET(
     const resolvedParams = await params;
     const token = resolvedParams.token;
 
+    if (!token || token.trim() === '') {
+      return createErrorResponse(ERRORS.NOT_FOUND, 'Share link not found or expired');
+    }
+
     const shareLink = await shareLinkQueries.getShareLinkByToken(token);
 
     if (!shareLink) {

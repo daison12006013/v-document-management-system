@@ -67,6 +67,11 @@ export const ERRORS = {
         code: 404,
         message: 'Permission not found',
     },
+    NOT_FOUND: {
+        alias: 'NOT_FOUND',
+        code: 404,
+        message: 'Resource not found',
+    },
 
     // Validation Errors (400)
     VALIDATION_ERROR: {
