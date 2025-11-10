@@ -10,7 +10,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { Edit } from 'lucide-react';
+import { Edit, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { File } from '@/lib/types';
 import { api } from '@/lib/api';
@@ -23,6 +23,7 @@ interface FolderTreeProps {
   onFolderSelect: (folderId: string | null) => void;
   onFileSelect?: (fileId: string) => void;
   onRename?: (file: File, newName: string) => void;
+  onShare?: (file: File) => void;
   canUpdate?: boolean;
   className?: string;
   refreshTrigger?: string | null; // When this changes, recache the entire tree
@@ -45,6 +46,7 @@ export const FolderTree = ({
   onFolderSelect,
   onFileSelect,
   onRename,
+  onShare,
   canUpdate = false,
   className,
   refreshTrigger,
@@ -318,19 +320,33 @@ export const FolderTree = ({
               </div>
             </div>
           </ContextMenuTrigger>
-          {canUpdate && onRename && node.id && (
+          {(canUpdate && onRename && node.id) || (onShare && node.id) ? (
             <ContextMenuContent
               onCloseAutoFocus={(e) => e.preventDefault()}
             >
-              <ContextMenuItem onSelect={(e) => {
-                e.preventDefault();
-                handleRenameClick(node);
-              }}>
-                <Edit className="mr-2 h-4 w-4" />
-                Rename
-              </ContextMenuItem>
+              {canUpdate && onRename && node.id && (
+                <ContextMenuItem onSelect={(e) => {
+                  e.preventDefault();
+                  handleRenameClick(node);
+                }}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Rename
+                </ContextMenuItem>
+              )}
+              {onShare && node.id && (
+                <ContextMenuItem onSelect={async (e) => {
+                  e.preventDefault();
+                  const file = await convertNodeToFile(node);
+                  if (file) {
+                    onShare(file);
+                  }
+                }}>
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share
+                </ContextMenuItem>
+              )}
             </ContextMenuContent>
-          )}
+          ) : null}
         </ContextMenu>
 
         {node.isExpanded && isFolder && (

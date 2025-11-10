@@ -50,6 +50,7 @@ import { FolderTree } from './folder-tree';
 import { FileSearch, SearchFilters } from './file-search';
 import { StorageStats } from './storage-stats';
 import { InlineUploadArea } from './inline-upload-area';
+import { ShareDialog } from './dialogs';
 import { cn } from '@/lib/utils';
 
 interface EnhancedFilesPageProps {
@@ -121,6 +122,8 @@ export const EnhancedFilesPage = ({ user }: EnhancedFilesPageProps) => {
 
   // Dialogs and modals
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareFile, setShareFile] = useState<File | null>(null);
   const [folderName, setFolderName] = useState('');
   const [viewerFile, setViewerFile] = useState<File | null>(null);
 
@@ -566,11 +569,8 @@ export const EnhancedFilesPage = ({ user }: EnhancedFilesPageProps) => {
   };
 
   const handleFileShare = (file: File) => {
-    // TODO: Implement file sharing
-    toast({
-      title: "Share feature",
-      description: "File sharing is not yet implemented.",
-    });
+    setShareFile(file);
+    setShareDialogOpen(true);
   };
 
   const handleFolderSelect = async (folderId: string | null) => {
@@ -804,6 +804,7 @@ export const EnhancedFilesPage = ({ user }: EnhancedFilesPageProps) => {
               onFolderSelect={handleFolderSelect}
               onFileSelect={handleFileSelect}
               onRename={canUpdate ? handleFileRename : undefined}
+              onShare={handleFileShare}
               canUpdate={canUpdate}
               className="h-full border-0 rounded-none"
               refreshTrigger={treeRefreshTrigger}
@@ -1175,6 +1176,13 @@ export const EnhancedFilesPage = ({ user }: EnhancedFilesPageProps) => {
         isOpen={!!viewerFile}
         onClose={() => setViewerFile(null)}
         onDownload={canDownload ? handleFileDownload : undefined}
+      />
+
+      {/* Share Dialog */}
+      <ShareDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        file={shareFile}
       />
 
     </div>

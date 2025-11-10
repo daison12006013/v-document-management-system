@@ -336,6 +336,51 @@ async function getAllDescendants(folderId: string): Promise<Array<{ id: string; 
 }
 
 /**
+ * Get all files in a folder with their relative paths for zip creation
+ * Returns files with their relative paths from the folder root
+ */
+export async function getFolderFilesForZip(folderId: string, folderPath: string = ''): Promise<Array<{
+  id: string;
+  name: string;
+  type: FileType;
+  storagePath: string | null;
+  storageDriver: 'local' | 's3' | 'r2' | null;
+  relativePath: string; // Path relative to folder root for zip structure
+}>> {
+  const folderFiles: Array<{
+    id: string;
+    name: string;
+    type: FileType;
+    storagePath: string | null;
+    storageDriver: 'local' | 's3' | 'r2' | null;
+    relativePath: string;
+  }> = [];
+
+  const children = await getFolderChildren(folderId);
+
+  for (const child of children) {
+    const relativePath = folderPath ? `${folderPath}/${child.name}` : child.name;
+
+    if (child.type === 'file') {
+      folderFiles.push({
+        id: child.id,
+        name: child.name,
+        type: child.type,
+        storagePath: child.storagePath || null,
+        storageDriver: child.storageDriver as 'local' | 's3' | 'r2' | null,
+        relativePath,
+      });
+    } else if (child.type === 'folder') {
+      // Recursively get files from subfolders
+      const subfolderFiles = await getFolderFilesForZip(child.id, relativePath);
+      folderFiles.push(...subfolderFiles);
+    }
+  }
+
+  return folderFiles;
+}
+
+/**
  * Soft delete a file or folder (recursively deletes all children if folder)
  * Returns array of files that need to be deleted from storage
  */

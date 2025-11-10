@@ -514,6 +514,64 @@ export const files = {
     async getDownloadUrl(id: string): Promise<{ url: string; filename: string; mimeType?: string; size?: number }> {
         return request<{ url: string; filename: string; mimeType?: string; size?: number }>(`/api/files/${id}/download`)
     },
+
+    /**
+     * Create a share link for a file/folder
+     */
+    async createShareLink(
+        id: string,
+        options: { expiresInSeconds?: number | null }
+    ): Promise<{
+        id: string
+        token: string
+        shareUrl: string
+        expiresAt: Date | null
+        expiresInSeconds: number | null
+        createdAt: Date
+    }> {
+        return request<{
+            id: string
+            token: string
+            shareUrl: string
+            expiresAt: Date | null
+            expiresInSeconds: number | null
+            createdAt: Date
+        }>(`/api/files/${id}/share`, {
+            method: "POST",
+            body: JSON.stringify(options),
+        })
+    },
+
+    /**
+     * Get share link info by token (public, no auth required)
+     */
+    async getShareLink(token: string): Promise<{
+        id: string
+        fileId: string
+        file: {
+            id: string
+            name: string
+            type: 'file' | 'folder'
+            mimeType: string | null
+            size: number | null
+        }
+        expiresAt: Date | null
+        createdAt: Date
+    }> {
+        return request<{
+            id: string
+            fileId: string
+            file: {
+                id: string
+                name: string
+                type: 'file' | 'folder'
+                mimeType: string | null
+                size: number | null
+            }
+            expiresAt: Date | null
+            createdAt: Date
+        }>(`/api/files/share/${token}`)
+    },
 }
 
 // Combined API object for convenience

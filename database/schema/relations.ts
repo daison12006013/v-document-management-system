@@ -2,7 +2,7 @@ import { relations } from 'drizzle-orm';
 import { users } from './users';
 import { roles, permissions, userRoles, userPermissions, rolePermissions } from './rbac';
 import { activities } from './activities';
-import { files, fileShares } from './files';
+import { files, fileShares, shareLinks } from './files';
 
 // Users relations
 export const usersRelations = relations(users, ({ many }) => ({
@@ -96,6 +96,7 @@ export const filesRelations = relations(files, ({ one, many }) => ({
     relationName: 'createdBy',
   }),
   shares: many(fileShares),
+  shareLinks: many(shareLinks),
 }));
 
 // File shares relations
@@ -113,6 +114,18 @@ export const fileSharesRelations = relations(fileShares, ({ one }) => ({
     fields: [fileShares.sharedBy],
     references: [users.id],
     relationName: 'sharedBy',
+  }),
+}));
+
+// Share links relations
+export const shareLinksRelations = relations(shareLinks, ({ one }) => ({
+  file: one(files, {
+    fields: [shareLinks.fileId],
+    references: [files.id],
+  }),
+  sharedByUser: one(users, {
+    fields: [shareLinks.sharedBy],
+    references: [users.id],
   }),
 }));
 

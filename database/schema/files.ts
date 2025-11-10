@@ -48,3 +48,19 @@ export const fileShares = mysqlTable('file_shares', {
   sharedByIdx: index('shared_by_idx').on(table.sharedBy),
 }));
 
+// Public share links table for shareable links (like Google Drive)
+export const shareLinks = mysqlTable('share_links', {
+  id: char('id', { length: 36 }).primaryKey().$defaultFn(() => randomUUID()),
+  fileId: char('file_id', { length: 36 }).notNull(),
+  token: varchar('token', { length: 255 }).notNull().unique(),
+  sharedBy: char('shared_by', { length: 36 }).notNull(),
+  expiresAt: timestamp('expires_at', { fsp: 6 }),
+  createdAt: timestamp('created_at', { fsp: 6 }).default(sql`CURRENT_TIMESTAMP(6)`).notNull(),
+  expiresInSeconds: bigint('expires_in_seconds', { mode: 'number' }), // Store expiration duration for reference
+}, (table) => ({
+  fileIdIdx: index('share_link_file_id_idx').on(table.fileId),
+  tokenIdx: index('share_link_token_idx').on(table.token),
+  sharedByIdx: index('share_link_shared_by_idx').on(table.sharedBy),
+  expiresAtIdx: index('share_link_expires_at_idx').on(table.expiresAt),
+}));
+
