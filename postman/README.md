@@ -31,6 +31,7 @@ make postman-run
 ```
 
 The tests will:
+
 - Execute all requests in the collection
 - Run success and failure test cases
 - Generate HTML and JSON reports
@@ -41,9 +42,11 @@ The tests will:
 The environment file includes the following default values:
 
 ### Base Configuration
+
 - `baseUrl`: `http://localhost:3000`
 
 ### Default Test Accounts
+
 - `adminEmail`: `admin@vistra.com`
 - `adminPassword`: `admin123`
 - `userEmail`: `user@vistra.com`
@@ -52,6 +55,7 @@ The environment file includes the following default values:
 - `demoPassword`: `demo123`
 
 ### Dynamic Variables (Auto-populated)
+
 - `csrfToken` - Automatically fetched for POST/PUT/DELETE requests
 - `sessionCookie` - Set after successful login
 - `userId` - Current user ID
@@ -69,6 +73,7 @@ The environment file includes the following default values:
 The collection is organized into the following folders:
 
 ### 1. Authentication
+
 - Login - Success
 - Login - Invalid Credentials
 - Login - Validation Error
@@ -77,12 +82,15 @@ The collection is organized into the following folders:
 - Logout
 
 ### 2. CSRF
+
 - Get CSRF Token
 
 ### 3. Health
+
 - Database Health Check
 
 ### 4. Users
+
 - List Users
 - List Users - Unauthorized
 - Create User
@@ -98,6 +106,7 @@ The collection is organized into the following folders:
 - Remove Permission from User
 
 ### 5. Roles
+
 - List Roles
 - Create Role
 - Create Role - Duplicate Name
@@ -107,9 +116,11 @@ The collection is organized into the following folders:
 - Delete Role
 
 ### 6. Permissions
+
 - List Permissions
 
 ### 7. Files
+
 - List Files
 - List Files - With Filters
 - Create Folder
@@ -125,20 +136,26 @@ The collection is organized into the following folders:
 - Delete File
 
 ### 8. Dashboard
+
 - Get Dashboard Data
 
 ## Features
 
 ### Automatic CSRF Token Handling
+
 The collection includes a pre-request script that automatically fetches and includes CSRF tokens for all POST, PUT, DELETE, and PATCH requests.
 
 ### Comprehensive Test Coverage
+
 Each endpoint includes:
+
 - **Success test cases**: Verify correct responses, status codes, and data structure
 - **Failure test cases**: Test error handling, validation, and edge cases
 
 ### Test Assertions
+
 All requests include test scripts that verify:
+
 - HTTP status codes
 - Response structure
 - Data validation
@@ -146,7 +163,9 @@ All requests include test scripts that verify:
 - Authentication/authorization
 
 ### Dynamic Variable Management
+
 The collection automatically:
+
 - Stores session cookies after login
 - Captures IDs from responses for use in subsequent requests
 - Manages CSRF tokens
@@ -157,11 +176,13 @@ The collection automatically:
 ### Prerequisites
 
 1. **Server Running**: Ensure the Next.js development server is running
+
    ```bash
    make dev
    ```
 
 2. **Database Seeded**: Make sure the database is set up with seed data
+
    ```bash
    make setup
    # or
@@ -169,6 +190,7 @@ The collection automatically:
    ```
 
 3. **Newman CLI**: Install Newman for CLI testing (optional, for `make postman-run`)
+
    ```bash
    npm install -g newman
    # or
@@ -200,6 +222,7 @@ newman run postman/Vistra_API.postman_collection.json \
 ### Test Reports
 
 After running tests via CLI, reports are generated:
+
 - **HTML Report**: `postman/report.html` - Visual test results
 - **JSON Report**: `postman/report.json` - Machine-readable results
 
@@ -254,6 +277,7 @@ Update the email and password variables in the environment file:
 ### CSRF Token Issues
 
 The collection automatically handles CSRF tokens. If you see CSRF errors:
+
 1. Ensure the "Get CSRF Token" request runs first
 2. Check that the pre-request script is enabled
 3. Verify the server is returning CSRF tokens
@@ -261,6 +285,7 @@ The collection automatically handles CSRF tokens. If you see CSRF errors:
 ### Authentication Issues
 
 If authentication fails:
+
 1. Run the "Login - Success" request first
 2. Verify credentials match seed data
 3. Check that session cookies are being set
@@ -292,8 +317,8 @@ You can integrate these tests into your CI/CD pipeline:
 ## Support
 
 For issues or questions:
+
 1. Check the test reports for detailed error messages
 2. Verify server logs for API errors
 3. Ensure database is properly seeded
 4. Review the Swagger documentation at `/api-docs`
-

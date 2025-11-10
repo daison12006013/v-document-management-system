@@ -12,7 +12,7 @@ import { logRoleAssigned, logRoleRemoved } from '@/lib/utils/activities';
 import { validateRequiredFields } from '@/lib/utils/validation';
 
 // POST /api/users/[id]/roles - Assign role to user
-const postHandler = withAuth(async (
+const postHandler = async (
     request: NextRequest,
     user: any,
     context: { params: Promise<{ id: string }> }
@@ -62,12 +62,12 @@ const postHandler = withAuth(async (
     } catch (error: any) {
         return handleApiError(error, 'Assign role');
     }
-}, { requiredPermission: { resource: 'users', action: 'write' } });
+};
 
 export const POST = withProtected(postHandler, { requiredPermission: { resource: 'users', action: 'write' } });
 
 // DELETE /api/users/[id]/roles?roleId=xxx - Remove role from user
-const deleteHandler = withAuth(async (
+const deleteHandler = async (
     request: NextRequest,
     user: any,
     context: { params: Promise<{ id: string }> }
@@ -114,6 +114,6 @@ const deleteHandler = withAuth(async (
     } catch (error: any) {
         return handleApiError(error, 'Remove role');
     }
-}, { requiredPermission: { resource: 'users', action: 'write' } });
+};
 
 export const DELETE = withProtected(deleteHandler, { requiredPermission: { resource: 'users', action: 'write' } });

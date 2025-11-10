@@ -41,7 +41,7 @@ The following test users are available after running `make setup`:
 | Email              | Password   | Role   | Description                      |
 |--------------------|------------|--------|----------------------------------|
 | `admin@vistra.com` | `admin123` | Admin  | Full access to all features      |
-| `user@vistra.com`  | `user123`  | User   | Regular user with limited access |****
+| `user@vistra.com`  | `user123`  | User   | Regular user with limited access |
 | `demo@vistra.com`  | `demo123`  | Viewer | Read-only access                 |
 
 *Note: The email address is shown as a placeholder in the login form.*
@@ -107,7 +107,7 @@ make db-studio
 
 **Note**: The database connection is automatically tested when Next.js starts. If MySQL isn't running (`make db-start`), you'll see a warning but the app will still start (connection will be retried on first use).
 
-### Testing
+### Quick Test Reference
 
 Run tests:
 
@@ -140,7 +140,7 @@ make start
 
 ## Project Structure
 
-```
+```text
 /
 ├── app/                    # Next.js App Router pages and routes
 │   ├── api/               # API routes
@@ -206,14 +206,14 @@ make start
 - `make start` - Start production server
 - `make lint` - Run linter
 
-### Testing
+### Test Commands
 
 - `pnpm test` - Run all tests once
 - `pnpm test:watch` - Run tests in watch mode
 - `pnpm test:ui` - Open Vitest UI in browser
 - `pnpm test:coverage` - Generate coverage report
 
-### Database
+### Database Commands
 
 - `make db-start` - Start MySQL database container
 - `make db-stop` - Stop MySQL database container
@@ -245,7 +245,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **MySQL Connection String Format:**
 
-```
+```text
 mysql://[username]:[password]@[host]:[port]/[database]
 ```
 
@@ -285,7 +285,7 @@ curl http://localhost:3000/api/health/db
 
 This project uses [Vitest](https://vitest.dev/) for unit and integration testing with comprehensive coverage of utility functions and components.
 
-### Quick Start
+### Running Tests
 
 ```bash
 # Run all tests

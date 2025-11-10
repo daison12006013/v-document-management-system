@@ -40,9 +40,9 @@ export const GET = withAuth(async (
 }, { requiredPermission: { resource: 'users', action: 'read' } });
 
 // PUT /api/users/[id] - Update a user
-const putHandler = withAuth(async (
+const putHandler = async (
     request: NextRequest,
-    user,
+    user: any,
     context: { params: Promise<{ id: string }> }
 ) => {
     const { id } = await extractParams(context);
@@ -87,14 +87,14 @@ const putHandler = withAuth(async (
     } catch (error: any) {
         return handleApiError(error, 'Update user');
     }
-}, { requiredPermission: { resource: 'users', action: 'write' } });
+};
 
 export const PUT = withProtected(putHandler, { requiredPermission: { resource: 'users', action: 'write' } });
 
 // DELETE /api/users/[id] - Delete a user
-const deleteHandler = withAuth(async (
+const deleteHandler = async (
     _request: NextRequest,
-    user,
+    user: any,
     context: { params: Promise<{ id: string }> }
 ) => {
     const { id } = await extractParams(context);
@@ -125,6 +125,6 @@ const deleteHandler = withAuth(async (
     } catch (error: any) {
         return handleApiError(error, 'Delete user');
     }
-}, { requiredPermission: { resource: 'users', action: 'delete' } });
+};
 
 export const DELETE = withProtected(deleteHandler, { requiredPermission: { resource: 'users', action: 'delete' } });

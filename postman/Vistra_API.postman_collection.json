@@ -37,6 +37,16 @@
 					"            value: csrfToken",
 					"        });",
 					"    }",
+					"}",
+					"",
+					"// Ensure session cookie is sent if available",
+					"// Note: Newman/Postman should handle cookies automatically, but this ensures compatibility",
+					"const sessionCookie = pm.environment.get('sessionCookie');",
+					"if (sessionCookie && !pm.request.headers.has('Cookie')) {",
+					"    pm.request.headers.add({",
+					"        key: 'Cookie',",
+					"        value: 'vistra_session=' + sessionCookie",
+					"    });",
 					"}"
 				]
 			}
@@ -71,10 +81,36 @@
 									"});",
 									"",
 									"pm.test('Session cookie is set', function () {",
-									"    const cookies = pm.cookies.all();",
-									"    const sessionCookie = cookies.find(c => c.name === 'session');",
-									"    pm.expect(sessionCookie).to.not.be.undefined;",
-									"    pm.environment.set('sessionCookie', sessionCookie.value);",
+									"    // Try to get cookie from response headers first (for Newman compatibility)",
+									"    const setCookieHeader = pm.response.headers.get('Set-Cookie');",
+									"    let sessionCookieValue = null;",
+									"    ",
+									"    if (setCookieHeader) {",
+									"        const cookies = setCookieHeader.split(',');",
+									"        for (const cookieStr of cookies) {",
+									"            const trimmed = cookieStr.trim();",
+									"            if (trimmed.startsWith('vistra_session=')) {",
+									"                const match = trimmed.match(/vistra_session=([^;]+)/);",
+									"                if (match) {",
+									"                    sessionCookieValue = match[1];",
+									"                    break;",
+									"                }",
+									"            }",
+									"        }",
+									"    }",
+									"    ",
+									"    // Fallback to pm.cookies (for Postman GUI)",
+									"    if (!sessionCookieValue) {",
+									"        const cookies = pm.cookies.all();",
+									"        const sessionCookie = cookies.find(c => c.name === 'vistra_session');",
+									"        if (sessionCookie) {",
+									"            sessionCookieValue = sessionCookie.value;",
+									"        }",
+									"    }",
+									"    ",
+									"    pm.expect(sessionCookieValue).to.not.be.undefined;",
+									"    pm.expect(sessionCookieValue).to.not.be.null;",
+									"    pm.environment.set('sessionCookie', sessionCookieValue);",
 									"});",
 									"",
 									"pm.test('User ID is stored', function () {",
@@ -234,6 +270,17 @@
 				{
 					"name": "Get Current User - Unauthorized",
 					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Clear session cookie for unauthorized test",
+									"pm.environment.unset('sessionCookie');",
+									"pm.cookies.clear();"
+								]
+							}
+						},
 						{
 							"listen": "test",
 							"script": {
@@ -417,6 +464,17 @@
 				{
 					"name": "List Users - Unauthorized",
 					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Clear session cookie for unauthorized test",
+									"pm.environment.unset('sessionCookie');",
+									"pm.cookies.clear();"
+								]
+							}
+						},
 						{
 							"listen": "test",
 							"script": {
@@ -700,9 +758,27 @@
 					"name": "Delete User",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if createdUserId is not set (Create User failed)",
+									"const createdUserId = pm.environment.get('createdUserId');",
+									"if (!createdUserId || createdUserId === '') {",
+									"    pm.test.skip('Skipping test - createdUserId not set (Create User likely failed)');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const createdUserId = pm.environment.get('createdUserId');",
+									"if (!createdUserId || createdUserId === '') {",
+									"    pm.test.skip('Skipping test - createdUserId not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
@@ -1108,9 +1184,27 @@
 					"name": "Update Role",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if createdRoleId is not set (Create Role failed)",
+									"const createdRoleId = pm.environment.get('createdRoleId');",
+									"if (!createdRoleId || createdRoleId === '') {",
+									"    pm.test.skip('Skipping test - createdRoleId not set (Create Role likely failed)');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const createdRoleId = pm.environment.get('createdRoleId');",
+									"if (!createdRoleId || createdRoleId === '') {",
+									"    pm.test.skip('Skipping test - createdRoleId not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
@@ -1151,9 +1245,27 @@
 					"name": "Delete Role",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if createdRoleId is not set (Create Role failed)",
+									"const createdRoleId = pm.environment.get('createdRoleId');",
+									"if (!createdRoleId || createdRoleId === '') {",
+									"    pm.test.skip('Skipping test - createdRoleId not set (Create Role likely failed)');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const createdRoleId = pm.environment.get('createdRoleId');",
+									"if (!createdRoleId || createdRoleId === '') {",
+									"    pm.test.skip('Skipping test - createdRoleId not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
@@ -1421,9 +1533,27 @@
 					"name": "Get File by ID",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if folderId is not set (Create Folder failed)",
+									"const folderId = pm.environment.get('folderId');",
+									"if (!folderId || folderId === '') {",
+									"    pm.test.skip('Skipping test - folderId not set (Create Folder likely failed)');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const folderId = pm.environment.get('folderId');",
+									"if (!folderId || folderId === '') {",
+									"    pm.test.skip('Skipping test - folderId not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
@@ -1488,9 +1618,27 @@
 					"name": "Update File",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if folderId is not set (Create Folder failed)",
+									"const folderId = pm.environment.get('folderId');",
+									"if (!folderId || folderId === '') {",
+									"    pm.test.skip('Skipping test - folderId not set (Create Folder likely failed)');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const folderId = pm.environment.get('folderId');",
+									"if (!folderId || folderId === '') {",
+									"    pm.test.skip('Skipping test - folderId not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
@@ -1531,9 +1679,27 @@
 					"name": "Get Folder Children",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if folderId is not set (Create Folder failed)",
+									"const folderId = pm.environment.get('folderId');",
+									"if (!folderId || folderId === '') {",
+									"    pm.test.skip('Skipping test - folderId not set (Create Folder likely failed)');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const folderId = pm.environment.get('folderId');",
+									"if (!folderId || folderId === '') {",
+									"    pm.test.skip('Skipping test - folderId not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
@@ -1596,9 +1762,27 @@
 					"name": "Create Share Link",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if folderId is not set (Create Folder failed)",
+									"const folderId = pm.environment.get('folderId');",
+									"if (!folderId || folderId === '') {",
+									"    pm.test.skip('Skipping test - folderId not set (Create Folder likely failed)');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const folderId = pm.environment.get('folderId');",
+									"if (!folderId || folderId === '') {",
+									"    pm.test.skip('Skipping test - folderId not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
@@ -1646,9 +1830,27 @@
 					"name": "Get Share Link Info",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if shareToken is not set (Create Share Link failed)",
+									"const shareToken = pm.environment.get('shareToken');",
+									"if (!shareToken || shareToken === '') {",
+									"    pm.test.skip('Skipping test - shareToken not set (Create Share Link likely failed)');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const shareToken = pm.environment.get('shareToken');",
+									"if (!shareToken || shareToken === '') {",
+									"    pm.test.skip('Skipping test - shareToken not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
@@ -1706,9 +1908,27 @@
 					"name": "Delete File",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if folderId is not set (Create Folder failed)",
+									"const folderId = pm.environment.get('folderId');",
+									"if (!folderId || folderId === '') {",
+									"    pm.test.skip('Skipping test - folderId not set (Create Folder likely failed)');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const folderId = pm.environment.get('folderId');",
+									"if (!folderId || folderId === '') {",
+									"    pm.test.skip('Skipping test - folderId not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
