@@ -1,4 +1,4 @@
-import { eq, and, desc, isNull } from 'drizzle-orm';
+import { eq, and, desc, asc, isNull, count, like, gte, lte, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { db } from '@/lib/db';
 import { files } from '@/database/schema';
@@ -58,15 +58,19 @@ export async function getFile(id: string) {
   return result || null;
 }
 
-// List files/folders
-export async function listFiles(options: {
+// Count files/folders
+export async function countFiles(options: {
   parentId?: string | null;
   type?: FileType;
   createdBy?: string;
-  limit?: number;
-  offset?: number;
+  query?: string;
+  mimeType?: string;
+  createdAfter?: string;
+  createdBefore?: string;
+  sizeMin?: number;
+  sizeMax?: number;
 } = {}) {
-  const { parentId, type, createdBy, limit, offset } = options;
+  const { parentId, type, createdBy, query, mimeType, createdAfter, createdBefore, sizeMin, sizeMax } = options;
 
   const conditions = [isNull(files.deletedAt)];
 
@@ -86,9 +90,152 @@ export async function listFiles(options: {
     conditions.push(eq(files.createdBy, createdBy));
   }
 
-  const query = db.query.files.findMany({
+  // Search query - filter by name (case-insensitive for MySQL)
+  if (query) {
+    const searchPattern = `%${query}%`;
+    conditions.push(sql`LOWER(${files.name}) LIKE LOWER(${searchPattern})`);
+  }
+
+  // MIME type filter
+  if (mimeType) {
+    // Support wildcard patterns like "image/*"
+    if (mimeType.endsWith('/*')) {
+      const prefix = mimeType.slice(0, -2);
+      conditions.push(like(files.mimeType, `${prefix}/%`));
+    } else {
+      conditions.push(eq(files.mimeType, mimeType));
+    }
+  }
+
+  // Date range filters
+  if (createdAfter) {
+    conditions.push(gte(files.createdAt, new Date(createdAfter)));
+  }
+  if (createdBefore) {
+    conditions.push(lte(files.createdAt, new Date(createdBefore)));
+  }
+
+  // Size range filters
+  if (sizeMin !== undefined) {
+    conditions.push(gte(files.size, sizeMin));
+  }
+  if (sizeMax !== undefined) {
+    conditions.push(lte(files.size, sizeMax));
+  }
+
+const result = await db
+    .select({ count: count() })
+    .from(files)
+    .where(and(...conditions));
+
+  return result[0]?.count || 0;
+}
+
+// List files/folders
+export async function listFiles(options: {
+  parentId?: string | null;
+  type?: FileType;
+  createdBy?: string;
+  limit?: number;
+  offset?: number;
+  query?: string;
+  mimeType?: string;
+  createdAfter?: string;
+  createdBefore?: string;
+  sizeMin?: number;
+  sizeMax?: number;
+  sortField?: 'name' | 'createdAt' | 'updatedAt' | 'size' | 'type';
+  sortOrder?: 'asc' | 'desc';
+} = {}) {
+  const { parentId, type, createdBy, limit, offset, query, mimeType, createdAfter, createdBefore, sizeMin, sizeMax, sortField = 'name', sortOrder = 'asc' } = options;
+
+  const conditions = [isNull(files.deletedAt)];
+
+  if (parentId !== undefined) {
+    if (parentId === null) {
+      conditions.push(isNull(files.parentId));
+    } else {
+      conditions.push(eq(files.parentId, parentId));
+    }
+  }
+
+  if (type) {
+    conditions.push(eq(files.type, type));
+  }
+
+  if (createdBy) {
+    conditions.push(eq(files.createdBy, createdBy));
+  }
+
+  // Search query - filter by name (case-insensitive for MySQL)
+  if (query) {
+    const searchPattern = `%${query}%`;
+    conditions.push(sql`LOWER(${files.name}) LIKE LOWER(${searchPattern})`);
+  }
+
+  // MIME type filter
+  if (mimeType) {
+    // Support wildcard patterns like "image/*"
+    if (mimeType.endsWith('/*')) {
+      const prefix = mimeType.slice(0, -2);
+      conditions.push(like(files.mimeType, `${prefix}/%`));
+    } else {
+      conditions.push(eq(files.mimeType, mimeType));
+    }
+  }
+
+  // Date range filters
+  if (createdAfter) {
+    conditions.push(gte(files.createdAt, new Date(createdAfter)));
+  }
+  if (createdBefore) {
+    conditions.push(lte(files.createdAt, new Date(createdBefore)));
+  }
+
+  // Size range filters
+  if (sizeMin !== undefined) {
+    conditions.push(gte(files.size, sizeMin));
+  }
+  if (sizeMax !== undefined) {
+    conditions.push(lte(files.size, sizeMax));
+  }
+
+  // Build orderBy clause: folders first, then files, then by selected field
+  const orderByClause: any[] = [];
+
+  // If sorting by type, sort by type directly (folders/files based on sortOrder)
+  // Otherwise, always put folders first, then sort by the selected field
+  if (sortField === 'type') {
+    // Sort by type field directly - 'folder' comes before 'file' alphabetically
+    // For asc: folders first, for desc: files first
+    orderByClause.push(sortOrder === 'asc' ? asc(files.type) : desc(files.type));
+  } else {
+    // First, sort by type (folders first) - using CASE to make folders sort before files
+    orderByClause.push(
+      sql`CASE WHEN ${files.type} = 'folder' THEN 0 ELSE 1 END`
+    );
+
+    // Then sort by the selected field
+    if (sortField === 'name') {
+      orderByClause.push(sortOrder === 'asc' ? asc(files.name) : desc(files.name));
+    } else if (sortField === 'createdAt') {
+      orderByClause.push(sortOrder === 'asc' ? asc(files.createdAt) : desc(files.createdAt));
+    } else if (sortField === 'updatedAt') {
+      orderByClause.push(sortOrder === 'asc' ? asc(files.updatedAt) : desc(files.updatedAt));
+    } else if (sortField === 'size') {
+      // For size, handle null values (folders) - they should come first when sorting by size
+      // Use COALESCE to treat null as 0 for sorting purposes
+      orderByClause.push(
+        sortOrder === 'asc'
+          ? sql`COALESCE(${files.size}, 0) ASC`
+          : sql`COALESCE(${files.size}, 0) DESC`
+      );
+    }
+  }
+
+  const queryResult = db.query.files.findMany({
     where: and(...conditions),
-    orderBy: [desc(files.createdAt)],
+    orderBy: orderByClause,
     with: {
       parent: true,
       creator: true,
@@ -97,7 +244,7 @@ export async function listFiles(options: {
     offset,
   });
 
-  return query;
+  return queryResult;
 }
 
 // Get folder contents

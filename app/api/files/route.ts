@@ -8,7 +8,7 @@ import { withCsrfProtection } from '@/lib/middleware/csrf';
 import { withAuth } from '@/lib/middleware/auth';
 import { handleApiError } from '@/lib/utils/error-handler';
 import { normalizeParentId } from '@/lib/utils/files';
-import { parsePaginationParams, parseParentIdFromQuery, parseFileTypeFromQuery } from '@/lib/utils/query-params';
+import { parsePaginationParams, parseParentIdFromQuery, parseFileTypeFromQuery, parseSearchFiltersFromQuery, parseSortParams } from '@/lib/utils/query-params';
 import { logResourceCreated } from '@/lib/utils/activities';
 import { validateRequiredFields } from '@/lib/utils/validation';
 
@@ -18,13 +18,35 @@ export const GET = withAuth(async (request: NextRequest, _user) => {
     const { limit, offset } = parsePaginationParams(request);
     const parentId = parseParentIdFromQuery(request);
     const type = parseFileTypeFromQuery(request);
+    const searchFilters = parseSearchFiltersFromQuery(request);
+    const sortParams = parseSortParams(request);
 
-    const filesList = await fileQueries.listFiles({
+    const queryOptions = {
       parentId,
       type: type || undefined,
-      limit,
-      offset,
-    });
+      ...searchFilters,
+      ...sortParams,
+    };
+
+    // If pagination is requested, return count as well
+    if (limit !== undefined || offset !== undefined) {
+      const [filesList, totalCount] = await Promise.all([
+        fileQueries.listFiles({
+          ...queryOptions,
+          limit,
+          offset,
+        }),
+        fileQueries.countFiles(queryOptions),
+      ]);
+
+      return createSuccessResponse({
+        files: filesList,
+        total: totalCount,
+      });
+    }
+
+    // No pagination - return all files (for tree view)
+    const filesList = await fileQueries.listFiles(queryOptions);
 
     return createSuccessResponse(filesList);
   } catch (error: any) {

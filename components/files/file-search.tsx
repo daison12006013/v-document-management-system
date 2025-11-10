@@ -29,7 +29,6 @@ export interface SearchFilters {
   createdBefore?: string;
   sizeMin?: number;
   sizeMax?: number;
-  createdBy?: string;
 }
 
 interface FileSearchProps {
@@ -80,14 +79,32 @@ export const FileSearch = ({ onSearch, className }: FileSearchProps) => {
   }, [filters, debouncedSearch]);
 
   const updateFilter = (key: keyof SearchFilters, value: any) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value || undefined,
-    }));
+    setFilters(prev => {
+      // query must always be a string, never undefined
+      if (key === 'query') {
+        return {
+          ...prev,
+          query: value || '',
+        };
+      }
+      // Other fields can be undefined
+      return {
+        ...prev,
+        [key]: value || undefined,
+      };
+    });
   };
 
   const clearFilter = (key: keyof SearchFilters) => {
     setFilters(prev => {
+      // query must always be a string, never deleted
+      if (key === 'query') {
+        return {
+          ...prev,
+          query: '',
+        };
+      }
+      // Other fields can be deleted
       const newFilters = { ...prev };
       delete newFilters[key];
       return newFilters;

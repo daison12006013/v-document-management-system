@@ -1,6 +1,4 @@
 'use client';
-
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -10,15 +8,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   MoreVertical,
   Download,
@@ -32,6 +21,8 @@ import { cn } from '@/lib/utils';
 import { formatFileSize } from '@/lib/helpers';
 import { FileIcon } from './file-icon';
 import { FileContextMenu } from './context-menu';
+import { RenameDialog, DeleteDialog } from './dialogs';
+import { useFileOperations } from './hooks/use-file-operations';
 
 interface FileCardProps {
   file: File;
@@ -58,22 +49,22 @@ export const FileCard = ({
   isSelected = false,
   onSelect
 }: FileCardProps) => {
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [newName, setNewName] = useState(file.name);
+  // Use shared file operations hook
+  const {
+    renameDialogOpen,
+    setRenameDialogOpen,
+    handleRenameClick,
+    handleRename,
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    handleDeleteClick,
+    handleDelete,
+    selectedFile,
+  } = useFileOperations({
+    onRename: onRename,
+    onDelete: onDelete,
+  });
 
-  const handleRename = () => {
-    if (newName.trim() && newName !== file.name) {
-      onRename?.(file, newName.trim());
-    }
-    setIsRenaming(false);
-    setNewName(file.name);
-  };
-
-  const handleDelete = () => {
-    onDelete?.(file);
-    setIsDeleting(false);
-  };
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't trigger onClick if clicking on dropdown or checkbox
@@ -95,8 +86,8 @@ export const FileCard = ({
         file={file}
         onView={onView}
         onDownload={onDownload}
-        onRename={() => setIsRenaming(true)}
-        onDelete={() => setIsDeleting(true)}
+        onRename={() => handleRenameClick(file)}
+        onDelete={() => handleDeleteClick(file)}
         onShare={onShare}
         onOpenFolder={file.type === 'folder' ? () => onOpen(file) : undefined}
       >
@@ -161,7 +152,7 @@ export const FileCard = ({
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                       {file.type === 'file' && onView && (
                         <DropdownMenuItem onClick={() => onView(file)}>
                           <Eye className="mr-2 h-4 w-4" />
@@ -174,7 +165,11 @@ export const FileCard = ({
                           Download
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem onClick={() => setIsRenaming(true)}>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleRenameClick(file);
+                      }}>
                         <Edit className="mr-2 h-4 w-4" />
                         Rename
                       </DropdownMenuItem>
@@ -186,7 +181,7 @@ export const FileCard = ({
                       )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={() => setIsDeleting(true)}
+                        onClick={() => handleDeleteClick(file)}
                         className="text-red-600"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
@@ -251,7 +246,7 @@ export const FileCard = ({
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                       {file.type === 'file' && onView && (
                         <DropdownMenuItem onClick={() => onView(file)}>
                           <Eye className="mr-2 h-4 w-4" />
@@ -264,7 +259,11 @@ export const FileCard = ({
                           Download
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem onClick={() => setIsRenaming(true)}>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleRenameClick(file);
+                      }}>
                         <Edit className="mr-2 h-4 w-4" />
                         Rename
                       </DropdownMenuItem>
@@ -276,7 +275,7 @@ export const FileCard = ({
                       )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={() => setIsDeleting(true)}
+                        onClick={() => handleDeleteClick(file)}
                         className="text-red-600"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
@@ -292,54 +291,20 @@ export const FileCard = ({
       </FileContextMenu>
 
       {/* Rename Dialog */}
-      <Dialog open={isRenaming} onOpenChange={setIsRenaming}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rename {file.type}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleRename();
-                  }
-                }}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRenaming(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleRename}>Rename</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RenameDialog
+        open={renameDialogOpen}
+        onOpenChange={setRenameDialogOpen}
+        file={selectedFile}
+        onRename={handleRename}
+      />
 
       {/* Delete Dialog */}
-      <Dialog open={isDeleting} onOpenChange={setIsDeleting}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete {file.type}</DialogTitle>
-          </DialogHeader>
-          <p>
-            Are you sure you want to delete "{file.name}"? This action cannot be undone.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleting(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        file={selectedFile}
+        onDelete={handleDelete}
+      />
     </>
   );
 };

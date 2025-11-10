@@ -351,13 +351,22 @@ export const permissions = {
 export const files = {
     /**
      * Get all files/folders (with optional filters)
+     * Returns paginated response if limit/offset provided, otherwise returns all files
      */
     async getAll(params?: {
         parentId?: string | null
         type?: 'file' | 'folder'
         limit?: number
         offset?: number
-    }): Promise<File[]> {
+        query?: string
+        mimeType?: string
+        createdAfter?: string
+        createdBefore?: string
+        sizeMin?: number
+        sizeMax?: number
+        sortField?: 'name' | 'createdAt' | 'updatedAt' | 'size' | 'type'
+        sortOrder?: 'asc' | 'desc'
+    }): Promise<File[] | { files: File[]; total: number }> {
         const searchParams = new URLSearchParams()
         if (params?.parentId !== undefined) {
             searchParams.append('parentId', params.parentId === null ? 'null' : params.parentId)
@@ -371,8 +380,32 @@ export const files = {
         if (params?.offset) {
             searchParams.append('offset', params.offset.toString())
         }
+        if (params?.query) {
+            searchParams.append('query', params.query)
+        }
+        if (params?.mimeType) {
+            searchParams.append('mimeType', params.mimeType)
+        }
+        if (params?.createdAfter) {
+            searchParams.append('createdAfter', params.createdAfter)
+        }
+        if (params?.createdBefore) {
+            searchParams.append('createdBefore', params.createdBefore)
+        }
+        if (params?.sizeMin !== undefined) {
+            searchParams.append('sizeMin', params.sizeMin.toString())
+        }
+        if (params?.sizeMax !== undefined) {
+            searchParams.append('sizeMax', params.sizeMax.toString())
+        }
+        if (params?.sortField) {
+            searchParams.append('sortField', params.sortField)
+        }
+        if (params?.sortOrder) {
+            searchParams.append('sortOrder', params.sortOrder)
+        }
         const query = searchParams.toString()
-        return request<File[]>(`/api/files${query ? `?${query}` : ''}`)
+        return request<File[] | { files: File[]; total: number }>(`/api/files${query ? `?${query}` : ''}`)
     },
 
     /**
