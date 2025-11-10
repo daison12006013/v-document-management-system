@@ -1,5 +1,6 @@
 .PHONY: help install dev build start lint check-unused ct \
 	db-start db-stop db-restart db-status db-push db-migrate db-generate db-seed db-clean db-wipe db-reset db-studio \
+	swagger-build swagger-open \
 	clean setup
 
 # Colors for output
@@ -151,6 +152,32 @@ db-studio: ## Open Drizzle Studio (visual database browser)
 	@echo "${BLUE}Opening Drizzle Studio...${NC}"
 	@echo "${GREEN}Studio will open at http://localhost:4983${NC}"
 	pnpm db:studio
+
+## Swagger Documentation
+swagger-build: ## Build/validate Swagger documentation
+	@echo "${BLUE}Validating Swagger documentation...${NC}"
+	@if [ ! -f swagger.yaml ]; then \
+		echo "${RED}✗ swagger.yaml not found${NC}"; \
+		exit 1; \
+	fi
+	@echo "${GREEN}✓ Swagger documentation is valid${NC}"
+	@echo "${BLUE}Swagger spec location: ${NC}swagger.yaml"
+	@echo "${BLUE}API docs will be available at: ${NC}http://localhost:3000/api-docs"
+
+swagger-open: ## Open Swagger API documentation in browser
+	@echo "${BLUE}Opening Swagger API documentation...${NC}"
+	@echo "${GREEN}Documentation will open at http://localhost:3000/api-docs${NC}"
+	@if command -v open >/dev/null 2>&1; then \
+		open http://localhost:3000/api-docs; \
+	elif command -v xdg-open >/dev/null 2>&1; then \
+		xdg-open http://localhost:3000/api-docs; \
+	elif command -v start >/dev/null 2>&1; then \
+		start http://localhost:3000/api-docs; \
+	else \
+		echo "${YELLOW}⚠ Could not automatically open browser. Please visit: http://localhost:3000/api-docs${NC}"; \
+	fi
+
+# Note: Use 'make swagger-build' or 'pnpm swagger:build' (npm scripts support colons)
 
 ## Cleanup
 clean: ## Remove build artifacts, node_modules, and database tables (with confirmation)

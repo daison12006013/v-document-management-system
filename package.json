@@ -22,7 +22,9 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:push:force": "drizzle-kit push --force",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "swagger:build": "make swagger-build",
+    "swagger:open": "make swagger-open"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.922.0",
@@ -75,6 +77,7 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/archiver": "^7.0.0",
+    "@types/js-yaml": "^4.0.9",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.9.2",
     "@types/pg": "^8.15.6",
@@ -88,9 +91,12 @@
     "dotenv": "^17.2.3",
     "drizzle-kit": "^0.31.6",
     "happy-dom": "^20.0.10",
+    "js-yaml": "^4.1.0",
     "jsdom": "^27.1.0",
     "knip": "^5.67.0",
     "postcss": "^8.4.35",
+    "swagger-ui-dist": "^5.30.2",
+    "swagger-ui-react": "^5.30.2",
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.20.6",

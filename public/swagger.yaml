@@ -1,0 +1,1469 @@
+openapi: 3.0.3
+info:
+  title: Vistra API Documentation
+  description: |
+    Complete API documentation for the Vistra file management system.
+    
+    ## Authentication
+    Most endpoints require authentication via session cookies. After logging in, a session cookie is set automatically.
+    
+    ## CSRF Protection
+    State-changing operations (POST, PUT, DELETE) require a CSRF token. Get your CSRF token from `/api/csrf` and include it in the `X-CSRF-Token` header.
+    
+    ## Permissions
+    The API uses a role-based access control (RBAC) system. Each endpoint requires specific permissions to access.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@vistra.com
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://api.vistra.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Health
+    description: System health checks
+  - name: Users
+    description: User management operations
+  - name: Roles
+    description: Role-based access control (RBAC) roles
+  - name: Permissions
+    description: Permission management
+  - name: Files
+    description: File and folder operations
+  - name: Dashboard
+    description: Dashboard statistics and data
+  - name: CSRF
+    description: CSRF token management
+
+paths:
+  /api/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate a user and create a session
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: SecurePass123
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              description: Session cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                status: ok
+                data:
+                  user:
+                    id: "123e4567-e89b-12d3-a456-426614174000"
+                    email: user@example.com
+                    name: John Doe
+        '401':
+          $ref: '#/components/responses/InvalidCredentials'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Logout the current user and clear session
+      operationId: logout
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                status: ok
+                data:
+                  success: true
+
+  /api/auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      description: Get the currently authenticated user and their permissions
+      operationId: getCurrentUser
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                status: ok
+                data:
+                  authenticated: true
+                  user:
+                    id: "123e4567-e89b-12d3-a456-426614174000"
+                    email: user@example.com
+                    name: John Doe
+                  permissions:
+                    - id: "perm-1"
+                      name: "files:read"
+                      resource: "files"
+                      action: "read"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/csrf:
+    get:
+      tags:
+        - CSRF
+      summary: Get CSRF token
+      description: Get a CSRF token for state-changing operations
+      operationId: getCsrfToken
+      responses:
+        '200':
+          description: CSRF token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                status: ok
+                data:
+                  token: "abc123xyz"
+
+  /api/health/db:
+    get:
+      tags:
+        - Health
+      summary: Database health check
+      description: Check database connection status
+      operationId: checkDbHealth
+      responses:
+        '200':
+          description: Database is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connected:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Database connection successful"
+                  timestamp:
+                    type: string
+                    format: date-time
+        '503':
+          description: Database is unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connected:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/dashboard:
+    get:
+      tags:
+        - Dashboard
+      summary: Get dashboard data
+      description: Get dashboard statistics based on user permissions
+      operationId: getDashboard
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                status: ok
+                data:
+                  usersCount: 42
+                  rolesCount: 5
+                  permissionsCount: 20
+                  recentActivities:
+                    - id: "act-1"
+                      userId: "user-1"
+                      action: "login"
+                      resourceType: "auth"
+                      description: "User logged in"
+                      createdAt: "2024-01-01T00:00:00Z"
+
+  /api/users:
+    get:
+      tags:
+        - Users
+      summary: List all users
+      description: Get a list of all users with their roles and permissions
+      operationId: listUsers
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                status: ok
+                data:
+                  - id: "user-1"
+                    email: user@example.com
+                    name: John Doe
+                    roles:
+                      - id: "role-1"
+                        name: admin
+                    permissions:
+                      - id: "perm-1"
+                        name: "files:read"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags:
+        - Users
+      summary: Create a new user
+      description: Create a new user account
+      operationId: createUser
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - name
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: newuser@example.com
+                name:
+                  type: string
+                  maxLength: 255
+                  example: Jane Doe
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  description: Must contain uppercase, lowercase, and number
+                  example: SecurePass123
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: Get a specific user with their roles and permissions
+      operationId: getUserById
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Users
+      summary: Update user
+      description: Update user information
+      operationId: updateUser
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - name
+              properties:
+                email:
+                  type: string
+                  format: email
+                name:
+                  type: string
+                  maxLength: 255
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          description: Cannot modify system account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      description: Delete a user account
+      operationId: deleteUser
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          description: Cannot delete system account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/users/{id}/roles:
+    post:
+      tags:
+        - Users
+      summary: Assign role to user
+      description: Assign a role to a user
+      operationId: assignRoleToUser
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - roleId
+              properties:
+                roleId:
+                  type: string
+                  example: "role-1"
+      responses:
+        '200':
+          description: Role assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Users
+      summary: Remove role from user
+      description: Remove a role from a user
+      operationId: removeRoleFromUser
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: roleId
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "role-1"
+      responses:
+        '200':
+          description: Role removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/{id}/permissions:
+    post:
+      tags:
+        - Users
+      summary: Assign permission to user
+      description: Assign a direct permission to a user
+      operationId: assignPermissionToUser
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - permissionId
+              properties:
+                permissionId:
+                  type: string
+                  example: "perm-1"
+      responses:
+        '200':
+          description: Permission assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Users
+      summary: Remove permission from user
+      description: Remove a direct permission from a user
+      operationId: removePermissionFromUser
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: permissionId
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "perm-1"
+      responses:
+        '200':
+          description: Permission removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/roles:
+    get:
+      tags:
+        - Roles
+      summary: List all roles
+      description: Get a list of all roles with their permissions
+      operationId: listRoles
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of roles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                status: ok
+                data:
+                  - id: "role-1"
+                    name: admin
+                    description: Administrator role
+                    permissions:
+                      - id: "perm-1"
+                        name: "files:read"
+                        resource: "files"
+                        action: "read"
+
+    post:
+      tags:
+        - Roles
+      summary: Create a new role
+      description: Create a new role with optional permissions
+      operationId: createRole
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: editor
+                description:
+                  type: string
+                  nullable: true
+                  example: Content editor role
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of permission names (e.g., "files:read")
+                  example: ["files:read", "files:write"]
+      responses:
+        '200':
+          description: Role created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Role already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/roles/{id}:
+    get:
+      tags:
+        - Roles
+      summary: Get role by ID
+      description: Get a specific role with its permissions
+      operationId: getRoleById
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "role-1"
+      responses:
+        '200':
+          description: Role details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Roles
+      summary: Update role
+      description: Update role information and permissions
+      operationId: updateRole
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                  nullable: true
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of permission names to replace existing permissions
+      responses:
+        '200':
+          description: Role updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Role name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Roles
+      summary: Delete role
+      description: Delete a role
+      operationId: deleteRole
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Role deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/permissions:
+    get:
+      tags:
+        - Permissions
+      summary: List all permissions
+      description: Get a list of all available permissions
+      operationId: listPermissions
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                status: ok
+                data:
+                  - id: "perm-1"
+                    name: "files:read"
+                    resource: "files"
+                    action: "read"
+                    description: "Read files"
+
+  /api/files:
+    get:
+      tags:
+        - Files
+      summary: List files and folders
+      description: Get a list of files and folders with optional filtering, sorting, and pagination
+      operationId: listFiles
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: parentId
+          in: query
+          schema:
+            type: string
+            nullable: true
+          description: Filter by parent folder ID (use 'null' for root)
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [file, folder]
+          description: Filter by type
+        - name: query
+          in: query
+          schema:
+            type: string
+          description: Search query (searches in file names)
+        - name: mimeType
+          in: query
+          schema:
+            type: string
+          description: Filter by MIME type
+        - name: createdAfter
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter files created after this date
+        - name: createdBefore
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Filter files created before this date
+        - name: sizeMin
+          in: query
+          schema:
+            type: integer
+          description: Minimum file size in bytes
+        - name: sizeMax
+          in: query
+          schema:
+            type: integer
+          description: Maximum file size in bytes
+        - name: sortField
+          in: query
+          schema:
+            type: string
+            enum: [name, createdAt, updatedAt, size, type]
+          description: Field to sort by
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+          description: Sort order
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          description: Number of items to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+          description: Number of items to skip
+      responses:
+        '200':
+          description: List of files
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      status:
+                        type: string
+                        example: ok
+                      data:
+                        type: object
+                        properties:
+                          files:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/File'
+                          total:
+                            type: integer
+                            example: 100
+
+    post:
+      tags:
+        - Files
+      summary: Upload file or create folder
+      description: |
+        Upload a file or create a folder.
+        
+        For file uploads, use multipart/form-data with a 'file' field.
+        For folder creation, use application/json.
+      operationId: createFile
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File to upload
+                parentId:
+                  type: string
+                  nullable: true
+                  description: Parent folder ID (null for root)
+                name:
+                  type: string
+                  description: Custom file name (optional)
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - type
+              properties:
+                name:
+                  type: string
+                  example: "New Folder"
+                type:
+                  type: string
+                  enum: [folder]
+                  example: folder
+                parentId:
+                  type: string
+                  nullable: true
+                  example: null
+      responses:
+        '201':
+          description: File or folder created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/files/{id}:
+    get:
+      tags:
+        - Files
+      summary: Get file or folder details
+      description: Get detailed information about a file or folder
+      operationId: getFileById
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "file-1"
+      responses:
+        '200':
+          description: File details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Files
+      summary: Update file or folder
+      description: Update file or folder metadata (name, parent, metadata)
+      operationId: updateFile
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Renamed File"
+                parentId:
+                  type: string
+                  nullable: true
+                  description: Move to different folder
+                metadata:
+                  type: object
+                  additionalProperties: true
+                  description: Custom metadata
+      responses:
+        '200':
+          description: File updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Files
+      summary: Delete file or folder
+      description: Delete a file or folder (recursively deletes folder contents)
+      operationId: deleteFile
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/files/{id}/download:
+    get:
+      tags:
+        - Files
+      summary: Get download URL
+      description: Get a signed URL to download a file
+      operationId: getDownloadUrl
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Download URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                status: ok
+                data:
+                  url: "https://storage.example.com/file?token=..."
+                  filename: "document.pdf"
+                  mimeType: "application/pdf"
+                  size: 1024000
+        '400':
+          description: Cannot download folder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/files/{id}/children:
+    get:
+      tags:
+        - Files
+      summary: Get folder contents
+      description: Get all files and folders within a folder
+      operationId: getFolderChildren
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Folder contents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Not a folder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/files/{id}/share:
+    post:
+      tags:
+        - Files
+      summary: Create share link
+      description: Create a shareable link for a file or folder
+      operationId: createShareLink
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expiresInSeconds:
+                  type: integer
+                  minimum: 0
+                  description: Expiration time in seconds (null for no expiration)
+                  example: 3600
+      responses:
+        '200':
+          description: Share link created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                status: ok
+                data:
+                  id: "share-1"
+                  token: "abc123xyz"
+                  shareUrl: "http://localhost:3000/share/abc123xyz"
+                  expiresAt: "2024-12-31T23:59:59Z"
+                  expiresInSeconds: 3600
+                  createdAt: "2024-01-01T00:00:00Z"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          description: No permission to share this file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/files/share/{token}:
+    get:
+      tags:
+        - Files
+      summary: Get share link info
+      description: Get information about a share link (public endpoint)
+      operationId: getShareLinkInfo
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "abc123xyz"
+      responses:
+        '200':
+          description: Share link information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          description: Share link not found or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/files/share/{token}/view:
+    get:
+      tags:
+        - Files
+      summary: View or download shared file
+      description: |
+        View or download a shared file or folder.
+        For folders, returns a ZIP file.
+        For files, returns the file content.
+        This is a public endpoint (no authentication required).
+      operationId: viewSharedFile
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "abc123xyz"
+      responses:
+        '200':
+          description: File content or ZIP archive
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            application/zip:
+              schema:
+                type: string
+                format: binary
+              description: ZIP file for folders
+        '404':
+          description: Share link not found or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/files/serve/{path}:
+    get:
+      tags:
+        - Files
+      summary: Serve file with token
+      description: Serve a file using a signed token (internal endpoint)
+      operationId: serveFile
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Encoded file path
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Signed token for file access
+      responses:
+        '200':
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Invalid or missing token
+        '403':
+          description: Token validation failed
+        '404':
+          description: File not found
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Session cookie set after login
+
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          example: ok
+        data:
+          type: object
+          description: Response data (structure varies by endpoint)
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [error]
+          example: error
+        data:
+          type: object
+          properties:
+            alias:
+              type: string
+              example: VALIDATION_ERROR
+            code:
+              type: integer
+              example: 400
+            message:
+              type: string
+              example: Validation error
+            trace:
+              type: object
+              description: Only included in debug mode
+              nullable: true
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        isSystemAccount:
+          type: boolean
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Permission'
+        directPermissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Permission'
+
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Permission'
+
+    Permission:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          example: "files:read"
+        resource:
+          type: string
+          example: "files"
+        action:
+          type: string
+          example: "read"
+        description:
+          type: string
+          nullable: true
+
+    File:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [file, folder]
+        parentId:
+          type: string
+          nullable: true
+        path:
+          type: string
+        originalName:
+          type: string
+          nullable: true
+        mimeType:
+          type: string
+          nullable: true
+        size:
+          type: integer
+          nullable: true
+        storagePath:
+          type: string
+          nullable: true
+        storageDriver:
+          type: string
+          enum: [local, s3, r2]
+          nullable: true
+        checksum:
+          type: string
+          nullable: true
+        createdBy:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+  responses:
+    Unauthorized:
+      description: Unauthorized - Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: error
+            data:
+              alias: UNAUTHORIZED
+              code: 401
+              message: Unauthorized
+
+    Forbidden:
+      description: Forbidden - Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: error
+            data:
+              alias: FORBIDDEN
+              code: 403
+              message: Forbidden
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: error
+            data:
+              alias: FILE_NOT_FOUND
+              code: 404
+              message: File not found
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: error
+            data:
+              alias: VALIDATION_ERROR
+              code: 400
+              message: Validation error
+
+    InvalidCredentials:
+      description: Invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: error
+            data:
+              alias: INVALID_CREDENTIALS
+              code: 401
+              message: Invalid email or password
+
