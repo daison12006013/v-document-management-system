@@ -1,5 +1,6 @@
 .PHONY: help install dev build start lint check-unused ct \
 	db-start db-stop db-restart db-status db-push db-migrate db-generate db-seed db-clean db-wipe db-reset db-studio \
+	docker-destroy \
 	swagger-build swagger-open \
 	postman-run postman-install \
 	clean setup
@@ -52,16 +53,23 @@ db-start: ## Start MySQL database container
 	@echo "${BLUE}Starting MySQL database...${NC}"
 	@docker-compose up -d mysql
 	@echo "${GREEN}Waiting for MySQL to be ready...${NC}"
-	@timeout=30; \
+	@timeout=60; \
+	ready_count=0; \
 	while [ $$timeout -gt 0 ]; do \
 		if docker-compose exec -T mysql mysqladmin ping -h localhost -u vistra_user -pvistra_password --silent 2>/dev/null; then \
-			echo "${GREEN}✓ MySQL is ready!${NC}"; \
-			exit 0; \
+			ready_count=$$((ready_count + 1)); \
+			if [ $$ready_count -ge 3 ]; then \
+				echo "${GREEN}✓ MySQL is ready!${NC}"; \
+				exit 0; \
+			fi; \
+		else \
+			ready_count=0; \
 		fi; \
 		sleep 1; \
 		timeout=$$((timeout - 1)); \
 	done; \
-	echo "${YELLOW}MySQL container started but not fully ready yet${NC}"
+	echo "${RED}✗ MySQL container did not become ready in time${NC}"; \
+	exit 1
 
 db-stop: ## Stop MySQL database container
 	@echo "${BLUE}Stopping MySQL database...${NC}"
@@ -92,8 +100,30 @@ db-push: db-start ## Push schema changes to database (auto-confirms)
 
 _db-push: ## Internal: Push schema (non-interactive, uses --force flag)
 	@echo "${BLUE}Pushing schema (non-interactive, auto-approving)...${NC}"
-	@pnpm db:push:force || (echo "${RED}Failed to push schema${NC}" && exit 1)
-	@echo "${GREEN}✓ Schema pushed successfully${NC}"
+	@retries=3; \
+	while [ $$retries -gt 0 ]; do \
+		if pnpm db:push:force 2>&1; then \
+			echo "${GREEN}✓ Schema pushed successfully${NC}"; \
+			exit 0; \
+		fi; \
+		retries=$$((retries - 1)); \
+		if [ $$retries -gt 0 ]; then \
+			echo "${YELLOW}⚠ Schema push failed, retrying in 5 seconds... ($$retries attempts left)${NC}"; \
+			sleep 5; \
+			echo "${BLUE}Verifying MySQL connection...${NC}"; \
+			timeout=15; \
+			while [ $$timeout -gt 0 ]; do \
+				if docker-compose exec -T mysql mysqladmin ping -h localhost -u vistra_user -pvistra_password --silent 2>/dev/null; then \
+					echo "${GREEN}✓ MySQL connection verified${NC}"; \
+					break; \
+				fi; \
+				sleep 1; \
+				timeout=$$((timeout - 1)); \
+			done; \
+		fi; \
+	done; \
+	echo "${RED}✗ Failed to push schema after multiple attempts${NC}"; \
+	exit 1
 
 db-generate: ## Generate migration files from schema changes
 	@echo "${BLUE}Generating migration files...${NC}"
@@ -106,7 +136,20 @@ db-migrate: db-start ## Run database migrations
 	@echo "${GREEN}✓ Migrations completed${NC}"
 
 ## Database - Data Management
-db-seed: db-start ## Seed database with initial data
+db-seed: ## Seed database with initial data
+	@echo "${BLUE}Verifying MySQL connection before seeding...${NC}"
+	@timeout=15; \
+	while [ $$timeout -gt 0 ]; do \
+		if docker-compose exec -T mysql mysqladmin ping -h localhost -u vistra_user -pvistra_password --silent 2>/dev/null; then \
+			break; \
+		fi; \
+		sleep 1; \
+		timeout=$$((timeout - 1)); \
+	done; \
+	if [ $$timeout -eq 0 ]; then \
+		echo "${RED}✗ MySQL is not ready. Run 'make db-start' first.${NC}"; \
+		exit 1; \
+	fi
 	@echo "${BLUE}Seeding database...${NC}"
 	@docker-compose exec -T mysql mysql -uvistra_user -pvistra_password vistra_db < database/seeds/seed.sql 2>/dev/null || \
 	 docker exec vistra_mysql mysql -uvistra_user -pvistra_password vistra_db < database/seeds/seed.sql 2>/dev/null || \
@@ -153,6 +196,22 @@ db-studio: ## Open Drizzle Studio (visual database browser)
 	@echo "${BLUE}Opening Drizzle Studio...${NC}"
 	@echo "${GREEN}Studio will open at http://localhost:4983${NC}"
 	pnpm db:studio
+
+## Docker - Container Management
+docker-destroy: ## Stop and remove all Docker containers, volumes, and networks (destructive)
+	@echo "${YELLOW}⚠️  WARNING: This will destroy all Docker containers, volumes, and networks!${NC}"
+	@echo "${YELLOW}⚠️  This will permanently delete all database data!${NC}"
+	@read -p "Are you sure you want to continue? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ ! $$REPLY =~ ^[Yy]$$ ]]; then \
+		echo "${BLUE}Cancelled.${NC}"; \
+		exit 1; \
+	fi
+	@echo "${BLUE}Stopping and removing containers...${NC}"
+	@docker-compose down -v || true
+	@echo "${BLUE}Removing volumes...${NC}"
+	@docker volume ls -q | grep -E "(vistra|mysql_data)" | xargs docker volume rm 2>/dev/null || true
+	@echo "${GREEN}✓ Docker containers, volumes, and networks destroyed${NC}"
 
 ## Swagger Documentation
 swagger-build: ## Build/validate Swagger documentation
