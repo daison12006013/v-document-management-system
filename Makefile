@@ -3,7 +3,7 @@
 	docker-destroy \
 	swagger-build swagger-open \
 	postman-run postman-install \
-	clean setup
+	clean setup _check-pnpm
 
 # Colors for output
 BLUE := \033[0;34m
@@ -19,7 +19,32 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  ${BLUE}%-20s${NC} %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 ## Development
-install: ## Install dependencies
+_check-pnpm: ## Internal: Check if pnpm is installed, install if missing
+	@echo "${BLUE}Checking for pnpm...${NC}"
+	@if ! command -v pnpm >/dev/null 2>&1; then \
+		echo "${YELLOW}⚠ pnpm is not installed. Installing pnpm...${NC}"; \
+		if command -v npm >/dev/null 2>&1; then \
+			echo "${BLUE}Installing pnpm via npm...${NC}"; \
+			npm install -g pnpm || (echo "${RED}✗ Failed to install pnpm. Please install it manually: npm install -g pnpm${NC}" && exit 1); \
+			echo "${GREEN}✓ pnpm installed successfully${NC}"; \
+		elif command -v corepack >/dev/null 2>&1; then \
+			echo "${BLUE}Enabling pnpm via corepack...${NC}"; \
+			corepack enable && corepack prepare pnpm@latest --activate || (echo "${RED}✗ Failed to enable pnpm via corepack${NC}" && exit 1); \
+			echo "${GREEN}✓ pnpm enabled via corepack${NC}"; \
+		else \
+			echo "${RED}✗ Neither npm nor corepack is available.${NC}"; \
+			echo "${YELLOW}Please install Node.js (which includes npm) or enable corepack, then run 'make setup' again.${NC}"; \
+			echo "${BLUE}Alternatively, install pnpm manually:${NC}"; \
+			echo "  npm install -g pnpm"; \
+			echo "  or"; \
+			echo "  curl -fsSL https://get.pnpm.io/install.sh | sh -"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "${GREEN}✓ pnpm is already installed${NC}"; \
+	fi
+
+install: _check-pnpm ## Install dependencies
 	@echo "${BLUE}Installing dependencies...${NC}"
 	pnpm install
 
