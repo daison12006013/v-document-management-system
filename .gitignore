@@ -42,6 +42,10 @@ next-env.d.ts
 # storage
 /storage/
 
+# postman test reports
+postman/report.html
+postman/report.json
+
 # IDE
 .cursor/
 .idea/

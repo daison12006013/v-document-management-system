@@ -55,10 +55,10 @@ export default defineConfig({
       ],
       // Thresholds - focused on testable utility functions and components
       thresholds: {
-        lines: 85,
-        functions: 80,
-        branches: 75,
-        statements: 85,
+        lines: 95,
+        functions: 95,
+        branches: 95,
+        statements: 95,
       },
     },
   },

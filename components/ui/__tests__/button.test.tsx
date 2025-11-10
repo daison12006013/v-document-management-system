@@ -81,6 +81,19 @@ describe('components/ui/button', () => {
       render(<Button ref={ref}>Button</Button>)
       expect(ref).toHaveBeenCalled()
     })
+
+    it('should render as child when asChild is true', () => {
+      // Test the asChild prop which uses Slot component (line 44)
+      render(
+        <Button asChild>
+          <a href="/test">Link Button</a>
+        </Button>
+      )
+      // When asChild is true, it should render the child element (anchor tag)
+      const link = screen.getByRole('link', { name: 'Link Button' })
+      expect(link).toBeInTheDocument()
+      expect(link.tagName).toBe('A')
+    })
   })
 })
 

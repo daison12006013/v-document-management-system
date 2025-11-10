@@ -1,6 +1,7 @@
 .PHONY: help install dev build start lint check-unused ct \
 	db-start db-stop db-restart db-status db-push db-migrate db-generate db-seed db-clean db-wipe db-reset db-studio \
 	swagger-build swagger-open \
+	postman-run postman-install \
 	clean setup
 
 # Colors for output
@@ -178,6 +179,55 @@ swagger-open: ## Open Swagger API documentation in browser
 	fi
 
 # Note: Use 'make swagger-build' or 'pnpm swagger:build' (npm scripts support colons)
+
+## Postman API Testing
+postman-install: ## Install Newman CLI and HTML reporter for running Postman tests
+	@echo "${BLUE}Installing Newman CLI and HTML reporter...${NC}"
+	@if command -v npm >/dev/null 2>&1; then \
+		npm install -g newman newman-reporter-html || (echo "${YELLOW}Note: If installation fails, try: npm install -g newman newman-reporter-html${NC}" && exit 0); \
+	else \
+		echo "${RED}✗ npm is not installed. Please install Node.js and npm first.${NC}"; \
+		exit 1; \
+	fi
+	@echo "${GREEN}✓ Newman and HTML reporter installed${NC}"
+	@echo "${BLUE}You can now run 'make postman-run' to execute the Postman collection${NC}"
+
+postman-run: ## Run Postman collection tests using Newman
+	@echo "${BLUE}Running Postman collection tests...${NC}"
+	@if [ ! -f postman/Vistra_API.postman_collection.json ]; then \
+		echo "${RED}✗ Postman collection not found at postman/Vistra_API.postman_collection.json${NC}"; \
+		exit 1; \
+	fi
+	@if [ ! -f postman/Vistra_API.postman_environment.json ]; then \
+		echo "${RED}✗ Postman environment not found at postman/Vistra_API.postman_environment.json${NC}"; \
+		exit 1; \
+	fi
+	@if ! command -v newman >/dev/null 2>&1; then \
+		echo "${YELLOW}⚠ Newman CLI not found. Installing...${NC}"; \
+		$(MAKE) postman-install || (echo "${RED}✗ Failed to install Newman. Please install manually: npm install -g newman${NC}" && exit 1); \
+	fi
+	@echo "${BLUE}Checking if server is running...${NC}"
+	@if ! curl -s http://localhost:3000/api/health/db >/dev/null 2>&1; then \
+		echo "${YELLOW}⚠ Server may not be running. Starting dev server in background...${NC}"; \
+		echo "${BLUE}Note: Make sure the server is running on http://localhost:3000${NC}"; \
+		echo "${BLUE}You can start it with: make dev${NC}"; \
+		sleep 2; \
+	fi
+	@newman run postman/Vistra_API.postman_collection.json \
+		-e postman/Vistra_API.postman_environment.json \
+		--reporters cli,html,json \
+		--reporter-html-export postman/report.html \
+		--reporter-json-export postman/report.json \
+		--timeout-request 30000 \
+		--delay-request 500 || (echo "${RED}✗ Some tests failed. Check the report at postman/report.html${NC}" && exit 1)
+	@echo "${GREEN}✓ Postman tests completed${NC}"
+	@echo "${BLUE}Test report saved to: postman/report.html${NC}"
+	@if command -v open >/dev/null 2>&1; then \
+		echo "${BLUE}Opening test report...${NC}"; \
+		open postman/report.html 2>/dev/null || true; \
+	elif command -v xdg-open >/dev/null 2>&1; then \
+		xdg-open postman/report.html 2>/dev/null || true; \
+	fi
 
 ## Cleanup
 clean: ## Remove build artifacts, node_modules, and database tables (with confirmation)
