@@ -12,6 +12,7 @@ import { isSystemAccount } from '@/lib/auth';
 
 /**
  * Check if a resource exists and return error if not found
+ * Uses a consistent pattern to reduce code duplication
  */
 export async function ensureUserExists(
   userId: string

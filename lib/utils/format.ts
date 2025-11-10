@@ -1,6 +1,6 @@
 /**
- * Custom helper functions
- * Shared utility functions used across the application
+ * Formatting utility functions
+ * Shared formatting helpers used across the application
  */
 
 /**

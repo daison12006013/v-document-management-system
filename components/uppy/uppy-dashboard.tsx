@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import Uppy from '@uppy/core';
 import Dashboard from '@uppy/react/dashboard';
 import { createUppyInstance, getUploadLimits } from '@/lib/uppy/config';
-import { formatFileSize } from '@/lib/helpers';
+import { formatFileSize } from '@/lib/utils/format';
 
 interface UppyDashboardProps {
   parentId?: string | null;

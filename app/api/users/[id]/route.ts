@@ -4,11 +4,12 @@ import { logResourceUpdated, logResourceDeleted } from '@/lib/utils/activities';
 import { ensureUserExists, ensureNotSystemAccount } from '@/lib/utils/validation';
 import { validateRequiredFields } from '@/lib/utils/validation';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
-import { withCsrfProtection } from '@/lib/middleware/csrf';
+import { withProtected } from '@/lib/middleware/protected';
 import { excludePassword } from '@/lib/utils/user';
 import { handleApiError } from '@/lib/utils/error-handler';
 import { withAuth } from '@/lib/middleware/auth';
-import { mapUserRoles, mapUserDirectPermissions } from '@/lib/utils/rbac';
+import { fetchUserPermissionsData } from '@/lib/utils/user-permissions';
+import { extractParams } from '@/lib/utils/api-helpers';
 
 // GET /api/users/[id] - Get a specific user
 export const GET = withAuth(async (
@@ -16,7 +17,7 @@ export const GET = withAuth(async (
     _user,
     context: { params: Promise<{ id: string }> }
 ) => {
-    const { id } = await context.params;
+    const { id } = await extractParams(context);
     try {
         const targetUser = await userQueries.getUser(id);
 
@@ -24,20 +25,14 @@ export const GET = withAuth(async (
             return createErrorResponse(ERRORS.USER_NOT_FOUND);
         }
 
-        // Get user roles, permissions, and direct permissions in parallel
-        const [roles, directPermissions, permissions] = await Promise.all([
-            userQueries.getUserRoles(targetUser.id),
-            userQueries.getUserDirectPermissions(targetUser.id),
-            userQueries.getUserPermissions(targetUser.id),
-        ]);
+        // Get user roles, permissions, and direct permissions
+        const permissionsData = await fetchUserPermissionsData(targetUser.id);
 
         // Exclude password from response
         const userWithoutPassword = excludePassword(targetUser);
         return createSuccessResponse({
             ...userWithoutPassword,
-            roles: mapUserRoles(roles),
-            permissions,
-            directPermissions: mapUserDirectPermissions(directPermissions),
+            ...permissionsData,
         });
     } catch (error: any) {
         return handleApiError(error, 'Get user');
@@ -50,7 +45,7 @@ const putHandler = withAuth(async (
     user,
     context: { params: Promise<{ id: string }> }
 ) => {
-    const { id } = await context.params;
+    const { id } = await extractParams(context);
     try {
         const body = await request.json();
         const { email, name } = body;
@@ -94,7 +89,7 @@ const putHandler = withAuth(async (
     }
 }, { requiredPermission: { resource: 'users', action: 'write' } });
 
-export const PUT = withCsrfProtection(putHandler);
+export const PUT = withProtected(putHandler, { requiredPermission: { resource: 'users', action: 'write' } });
 
 // DELETE /api/users/[id] - Delete a user
 const deleteHandler = withAuth(async (
@@ -102,7 +97,7 @@ const deleteHandler = withAuth(async (
     user,
     context: { params: Promise<{ id: string }> }
 ) => {
-    const { id } = await context.params;
+    const { id } = await extractParams(context);
     try {
         // Check if user exists
         const { user: existingUser, error: userError } = await ensureUserExists(id);
@@ -132,4 +127,4 @@ const deleteHandler = withAuth(async (
     }
 }, { requiredPermission: { resource: 'users', action: 'delete' } });
 
-export const DELETE = withCsrfProtection(deleteHandler);
+export const DELETE = withProtected(deleteHandler, { requiredPermission: { resource: 'users', action: 'delete' } });

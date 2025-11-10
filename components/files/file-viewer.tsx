@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Download, ZoomIn, ZoomOut, RotateCw, Loader2 } from 'lucide-react';
 import { File } from '@/lib/types';
-import { formatFileSize } from '@/lib/helpers';
+import { formatFileSize } from '@/lib/utils/format';
 
 interface FileViewerProps {
   file: File | null;

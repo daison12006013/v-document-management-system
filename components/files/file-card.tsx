@@ -3,26 +3,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
   MoreVertical,
-  Download,
-  Edit,
-  Trash2,
-  Eye,
-  Share,
 } from 'lucide-react';
 import { File } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { formatFileSize } from '@/lib/helpers';
+import { formatFileSize } from '@/lib/utils/format';
 import { FileIcon } from './file-icon';
 import { FileContextMenu } from './context-menu';
 import { RenameDialog, DeleteDialog } from './dialogs';
 import { useFileOperations } from './hooks/use-file-operations';
+import { FileActionMenu } from './file-action-menu';
 
 interface FileCardProps {
   file: File;
@@ -152,42 +145,17 @@ export const FileCard = ({
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                      {file.type === 'file' && onView && (
-                        <DropdownMenuItem onClick={() => onView(file)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Preview
-                        </DropdownMenuItem>
-                      )}
-                      {file.type === 'file' && onDownload && (
-                        <DropdownMenuItem onClick={() => onDownload(file)}>
-                          <Download className="mr-2 h-4 w-4" />
-                          Download
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleRenameClick(file);
-                      }}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Rename
-                      </DropdownMenuItem>
-                      {onShare && (
-                        <DropdownMenuItem onClick={() => onShare(file)}>
-                          <Share className="mr-2 h-4 w-4" />
-                          Share
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => handleDeleteClick(file)}
-                        className="text-red-600"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
+                    <FileActionMenu
+                      file={file}
+                      onView={onView}
+                      onDownload={onDownload}
+                      onRename={() => handleRenameClick(file)}
+                      onShare={onShare}
+                      onDelete={() => handleDeleteClick(file)}
+                      canDownload={!!onDownload}
+                      canUpdate={!!onRename}
+                      canDelete={!!onDelete}
+                    />
                   </DropdownMenu>
                 </div>
               </div>
@@ -246,42 +214,17 @@ export const FileCard = ({
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                      {file.type === 'file' && onView && (
-                        <DropdownMenuItem onClick={() => onView(file)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Preview
-                        </DropdownMenuItem>
-                      )}
-                      {file.type === 'file' && onDownload && (
-                        <DropdownMenuItem onClick={() => onDownload(file)}>
-                          <Download className="mr-2 h-4 w-4" />
-                          Download
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleRenameClick(file);
-                      }}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Rename
-                      </DropdownMenuItem>
-                      {onShare && (
-                        <DropdownMenuItem onClick={() => onShare(file)}>
-                          <Share className="mr-2 h-4 w-4" />
-                          Share
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => handleDeleteClick(file)}
-                        className="text-red-600"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
+                    <FileActionMenu
+                      file={file}
+                      onView={onView}
+                      onDownload={onDownload}
+                      onRename={() => handleRenameClick(file)}
+                      onShare={onShare}
+                      onDelete={() => handleDeleteClick(file)}
+                      canDownload={!!onDownload}
+                      canUpdate={!!onRename}
+                      canDelete={!!onDelete}
+                    />
                   </DropdownMenu>
                 </div>
               </div>

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { X, CheckCircle, AlertCircle, Upload, Pause, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatFileSize, formatSpeed, formatTime } from '@/lib/helpers';
+import { formatFileSize, formatSpeed, formatTime } from '@/lib/utils/format';
 
 export interface UploadItem {
   id: string;

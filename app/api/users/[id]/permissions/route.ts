@@ -6,7 +6,7 @@ import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_
 import { withCsrfProtection } from '@/lib/middleware/csrf';
 import { withAuth } from '@/lib/middleware/auth';
 import { handleApiError } from '@/lib/utils/error-handler';
-import { mapUserRoles, mapUserDirectPermissions } from '@/lib/utils/rbac';
+import { fetchUserPermissionsData } from '@/lib/utils/user-permissions';
 import { ensureUserExists, ensurePermissionExists, ensureNotSystemAccount } from '@/lib/utils/validation';
 import { logPermissionAssigned, logPermissionRemoved } from '@/lib/utils/activities';
 import { validateRequiredFields } from '@/lib/utils/validation';
@@ -45,12 +45,8 @@ const postHandler = withAuth(async (
         // Assign permission to user
         await rbacQueries.assignPermissionToUser(id, permissionId, user.id);
 
-        // Fetch updated user roles and permissions in parallel
-        const [roles, directPermissions, permissions] = await Promise.all([
-            userQueries.getUserRoles(id),
-            userQueries.getUserDirectPermissions(id),
-            userQueries.getUserPermissions(id),
-        ]);
+        // Fetch updated user roles and permissions
+        const permissionsData = await fetchUserPermissionsData(id);
 
         // Log permission assignment activity
         await logPermissionAssigned({
@@ -62,11 +58,7 @@ const postHandler = withAuth(async (
             assignedBy: user.id,
         });
 
-        return createSuccessResponse({
-            roles: mapUserRoles(roles),
-            permissions,
-            directPermissions: mapUserDirectPermissions(directPermissions),
-        });
+        return createSuccessResponse(permissionsData);
     } catch (error: any) {
         return handleApiError(error, 'Assign permission');
     }
@@ -106,12 +98,8 @@ const deleteHandler = withAuth(async (
         // Remove permission from user
         await rbacQueries.removePermissionFromUser(id, permissionId);
 
-        // Fetch updated user roles and permissions in parallel
-        const [roles, directPermissions, permissions] = await Promise.all([
-            userQueries.getUserRoles(id),
-            userQueries.getUserDirectPermissions(id),
-            userQueries.getUserPermissions(id),
-        ]);
+        // Fetch updated user roles and permissions
+        const permissionsData = await fetchUserPermissionsData(id);
 
         // Log permission removal activity
         await logPermissionRemoved({
@@ -123,11 +111,7 @@ const deleteHandler = withAuth(async (
             removedBy: user.id,
         });
 
-        return createSuccessResponse({
-            roles: mapUserRoles(roles),
-            permissions,
-            directPermissions: mapUserDirectPermissions(directPermissions),
-        });
+        return createSuccessResponse(permissionsData);
     } catch (error: any) {
         return handleApiError(error, 'Remove permission');
     }

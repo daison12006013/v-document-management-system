@@ -12,7 +12,7 @@ interface AuthContext {
   user: User;
 }
 
-interface AuthMiddlewareOptions {
+export interface AuthMiddlewareOptions {
   requiredPermission?: {
     resource: string;
     action: string;

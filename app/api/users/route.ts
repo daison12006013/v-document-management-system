@@ -8,9 +8,9 @@ import { withAuth } from '@/lib/middleware/auth';
 import { validateRequest } from '@/lib/validations/middleware';
 import { createUserSchema } from '@/lib/validations/schemas';
 import { logger } from '@/lib/logger';
-import { withCsrfProtection } from '@/lib/middleware/csrf';
+import { withProtected } from '@/lib/middleware/protected';
 import { excludePassword } from '@/lib/utils/user';
-import { mapUserRoles, mapUserDirectPermissions } from '@/lib/utils/rbac';
+import { fetchUserPermissionsData } from '@/lib/utils/user-permissions';
 import { handleApiError } from '@/lib/utils/error-handler';
 import type { User } from '@/lib/types';
 
@@ -23,24 +23,14 @@ export const GET = withAuth(async (_request: NextRequest, _user) => {
         const usersWithPermissions = await Promise.all(
             usersList.map(async (user) => {
                 try {
-                    // getUserRoles and getUserDirectPermissions are independent, so fetch them in parallel
-                    const [roles, directPermissions, permissions] = await Promise.all([
-                        userQueries.getUserRoles(user.id),
-                        userQueries.getUserDirectPermissions(user.id),
-                        userQueries.getUserPermissions(user.id),
-                    ]);
+                    // Fetch all permissions data
+                    const permissionsData = await fetchUserPermissionsData(user.id);
                     // Exclude password from response
                     const userWithoutPassword = excludePassword(user);
 
-                    // Map roles and permissions using utilities
-                    const userRoles = mapUserRoles(roles || []);
-                    const userDirectPermissions = mapUserDirectPermissions(directPermissions || []);
-
                     return {
                         ...userWithoutPassword,
-                        roles: userRoles,
-                        permissions: permissions || [],
-                        directPermissions: userDirectPermissions,
+                        ...permissionsData,
                     };
                 } catch (userError) {
                     logger.error(`Error fetching data for user ${user.id}`, { error: userError });
@@ -108,4 +98,4 @@ const createUserHandler = async (request: NextRequest, user: User) => {
     }
 };
 
-export const POST = withCsrfProtection(withAuth(createUserHandler, { requiredPermission: { resource: 'users', action: 'write' } }));
+export const POST = withProtected(createUserHandler, { requiredPermission: { resource: 'users', action: 'write' } });

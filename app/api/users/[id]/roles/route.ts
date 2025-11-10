@@ -3,11 +3,11 @@ import { requireAnyPermission } from '@/lib/auth';
 import * as userQueries from '@/lib/queries/users';
 import * as rbacQueries from '@/lib/queries/rbac';
 import { createSuccessResponse, createErrorResponse, ERRORS } from '@/lib/error_responses';
-import { withCsrfProtection } from '@/lib/middleware/csrf';
-import { withAuth } from '@/lib/middleware/auth';
+import { withProtected } from '@/lib/middleware/protected';
 import { handleApiError } from '@/lib/utils/error-handler';
-import { mapUserRoles, mapUserDirectPermissions } from '@/lib/utils/rbac';
+import { fetchUserPermissionsData } from '@/lib/utils/user-permissions';
 import { ensureUserExists, ensureRoleExists, ensureNotSystemAccount } from '@/lib/utils/validation';
+import { extractParams, parseRequestBody } from '@/lib/utils/api-helpers';
 import { logRoleAssigned, logRoleRemoved } from '@/lib/utils/activities';
 import { validateRequiredFields } from '@/lib/utils/validation';
 
@@ -21,8 +21,8 @@ const postHandler = withAuth(async (
         // User must have BOTH users:write AND permission to manage roles
         await requireAnyPermission(['roles:*', 'roles:write']);
 
-        const { id } = await context.params;
-        const body = await request.json();
+        const { id } = await extractParams(context);
+        const body = await parseRequestBody(request);
         const { roleId } = body;
 
         const requiredFieldsCheck = validateRequiredFields({ roleId }, ['roleId']);
@@ -45,12 +45,8 @@ const postHandler = withAuth(async (
         // Assign role to user
         await rbacQueries.assignRoleToUser(id, roleId, user.id);
 
-        // Fetch updated user roles and permissions in parallel
-        const [roles, directPermissions, permissions] = await Promise.all([
-            userQueries.getUserRoles(id),
-            userQueries.getUserDirectPermissions(id),
-            userQueries.getUserPermissions(id),
-        ]);
+        // Fetch updated user roles and permissions
+        const permissionsData = await fetchUserPermissionsData(id);
 
         // Log role assignment activity
         await logRoleAssigned({
@@ -62,17 +58,13 @@ const postHandler = withAuth(async (
             assignedBy: user.id,
         });
 
-        return createSuccessResponse({
-            roles: mapUserRoles(roles),
-            permissions,
-            directPermissions: mapUserDirectPermissions(directPermissions),
-        });
+        return createSuccessResponse(permissionsData);
     } catch (error: any) {
         return handleApiError(error, 'Assign role');
     }
 }, { requiredPermission: { resource: 'users', action: 'write' } });
 
-export const POST = withCsrfProtection(postHandler);
+export const POST = withProtected(postHandler, { requiredPermission: { resource: 'users', action: 'write' } });
 
 // DELETE /api/users/[id]/roles?roleId=xxx - Remove role from user
 const deleteHandler = withAuth(async (
@@ -84,7 +76,7 @@ const deleteHandler = withAuth(async (
         // User must have BOTH users:write AND permission to manage roles
         await requireAnyPermission(['roles:*', 'roles:write']);
 
-        const { id } = await context.params;
+        const { id } = await extractParams(context);
         const { searchParams } = new URL(request.url);
         const roleId = searchParams.get('roleId');
 
@@ -106,12 +98,8 @@ const deleteHandler = withAuth(async (
         // Remove role from user
         await rbacQueries.removeRoleFromUser(id, roleId);
 
-        // Fetch updated user roles and permissions in parallel
-        const [roles, directPermissions, permissions] = await Promise.all([
-            userQueries.getUserRoles(id),
-            userQueries.getUserDirectPermissions(id),
-            userQueries.getUserPermissions(id),
-        ]);
+        // Fetch updated user roles and permissions
+        const permissionsData = await fetchUserPermissionsData(id);
 
         await logRoleRemoved({
             userId: id,
@@ -122,14 +110,10 @@ const deleteHandler = withAuth(async (
             removedBy: user.id,
         });
 
-        return createSuccessResponse({
-            roles: mapUserRoles(roles),
-            permissions,
-            directPermissions: mapUserDirectPermissions(directPermissions),
-        });
+        return createSuccessResponse(permissionsData);
     } catch (error: any) {
         return handleApiError(error, 'Remove role');
     }
 }, { requiredPermission: { resource: 'users', action: 'write' } });
 
-export const DELETE = withCsrfProtection(deleteHandler);
+export const DELETE = withProtected(deleteHandler, { requiredPermission: { resource: 'users', action: 'write' } });
