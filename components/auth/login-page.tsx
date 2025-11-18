@@ -23,7 +23,7 @@ export const LoginPage = () => {
             Welcome to the Document Management System
           </div>
           <p className="text-xl text-muted-foreground mb-12">
-            Next.js application with TypeScript, Tailwind CSS, and PostgreSQL
+            Next.js application with TypeScript, Tailwind CSS, and MySQL
           </p>
         </div>
       </div>

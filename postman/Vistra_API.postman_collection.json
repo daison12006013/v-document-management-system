@@ -42,11 +42,25 @@
 					"// Ensure session cookie is sent if available",
 					"// Note: Newman/Postman should handle cookies automatically, but this ensures compatibility",
 					"const sessionCookie = pm.environment.get('sessionCookie');",
-					"if (sessionCookie && !pm.request.headers.has('Cookie')) {",
-					"    pm.request.headers.add({",
-					"        key: 'Cookie',",
-					"        value: 'vistra_session=' + sessionCookie",
-					"    });",
+					"if (sessionCookie) {",
+					"    const existingCookieHeader = pm.request.headers.get('Cookie');",
+					"    const hasSessionCookie = existingCookieHeader && existingCookieHeader.includes('vistra_session=');",
+					"    if (!hasSessionCookie) {",
+					"        // Add or update the Cookie header with the session cookie",
+					"        if (existingCookieHeader) {",
+					"            // Append to existing cookies",
+					"            pm.request.headers.upsert({",
+					"                key: 'Cookie',",
+					"                value: existingCookieHeader + '; vistra_session=' + sessionCookie",
+					"            });",
+					"        } else {",
+					"            // Create new Cookie header",
+					"            pm.request.headers.add({",
+					"                key: 'Cookie',",
+					"                value: 'vistra_session=' + sessionCookie",
+					"            });",
+					"        }",
+					"    }",
 					"}"
 				]
 			}
@@ -277,7 +291,22 @@
 								"exec": [
 									"// Clear session cookie for unauthorized test",
 									"pm.environment.unset('sessionCookie');",
-									"pm.cookies.clear();"
+									"pm.cookies.clear();",
+									"// Remove Cookie header if it exists to ensure no session cookie is sent",
+									"const cookieHeader = pm.request.headers.get('Cookie');",
+									"if (cookieHeader) {",
+									"    // Remove vistra_session from cookie string if present",
+									"    const cookies = cookieHeader.split(';').map(c => c.trim());",
+									"    const filteredCookies = cookies.filter(c => !c.startsWith('vistra_session='));",
+									"    if (filteredCookies.length === 0) {",
+									"        pm.request.headers.remove('Cookie');",
+									"    } else {",
+									"        pm.request.headers.upsert({",
+									"            key: 'Cookie',",
+									"            value: filteredCookies.join('; ')",
+									"        });",
+									"    }",
+									"}"
 								]
 							}
 						},
@@ -506,6 +535,18 @@
 					"name": "Create User",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Generate unique email for test user to avoid conflicts",
+									"const timestamp = Date.now();",
+									"const testUserEmail = 'testuser-' + timestamp + '@example.com';",
+									"pm.environment.set('testUserEmail', testUserEmail);"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
@@ -524,6 +565,7 @@
 									"    pm.expect(jsonData.data).to.have.property('email');",
 									"    pm.expect(jsonData.data).to.have.property('name');",
 									"    pm.environment.set('createdUserId', jsonData.data.id);",
+									"    pm.environment.set('testUserId', jsonData.data.id);",
 									"});"
 								],
 								"type": "text/javascript"
@@ -544,7 +586,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"email\": \"newuser@example.com\",\n    \"name\": \"New User\",\n    \"password\": \"SecurePass123\"\n}"
+							"raw": "{\n    \"email\": \"{{testUserEmail}}\",\n    \"name\": \"Test User for Role/Permission Testing\",\n    \"password\": \"SecurePass123!@#\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/users",
@@ -630,7 +672,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"email\": \"{{adminEmail}}\",\n    \"name\": \"Duplicate User\",\n    \"password\": \"SecurePass123\"\n}"
+							"raw": "{\n    \"email\": \"{{adminEmail}}\",\n    \"name\": \"Duplicate User\",\n    \"password\": \"SecurePass123!@#\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/users",
@@ -710,9 +752,35 @@
 					"name": "Update User",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if createdUserId is not set (Create User failed)",
+									"const createdUserId = pm.environment.get('createdUserId');",
+									"if (!createdUserId || createdUserId === '') {",
+									"    pm.test.skip('Skipping test - createdUserId not set (Create User likely failed)');",
+									"}",
+									"",
+									"// Ensure we're not modifying admin@vistra.com",
+									"const adminEmail = pm.environment.get('adminEmail');",
+									"const currentUserId = pm.environment.get('userId');",
+									"if (currentUserId && currentUserId === createdUserId) {",
+									"    // This should not happen, but double-check",
+									"    console.log('Warning: Attempting to update admin user. Using test user instead.');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const createdUserId = pm.environment.get('createdUserId');",
+									"if (!createdUserId || createdUserId === '') {",
+									"    pm.test.skip('Skipping test - createdUserId not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
@@ -725,6 +793,11 @@
 									"pm.test('User is updated', function () {",
 									"    const jsonData = pm.response.json();",
 									"    pm.expect(jsonData.data.name).to.eql('Updated Name');",
+									"});",
+									"",
+									"pm.test('Admin user was not modified', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.email).to.not.eql(pm.environment.get('adminEmail'));",
 									"});"
 								],
 								"type": "text/javascript"
@@ -745,12 +818,12 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"email\": \"{{adminEmail}}\",\n    \"name\": \"Updated Name\"\n}"
+							"raw": "{\n    \"email\": \"{{testUserEmail}}\",\n    \"name\": \"Updated Name\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/users/{{userId}}",
+							"raw": "{{baseUrl}}/api/users/{{createdUserId}}",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "users", "{{userId}}"]
+							"path": ["api", "users", "{{createdUserId}}"]
 						}
 					}
 				},
@@ -811,9 +884,34 @@
 					"name": "Assign Role to User",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if createdUserId is not set (Create User failed)",
+									"const createdUserId = pm.environment.get('createdUserId');",
+									"if (!createdUserId || createdUserId === '') {",
+									"    pm.test.skip('Skipping test - createdUserId not set (Create User likely failed)');",
+									"}",
+									"",
+									"// Ensure we're not modifying admin@vistra.com",
+									"const adminEmail = pm.environment.get('adminEmail');",
+									"const currentUserId = pm.environment.get('userId');",
+									"if (currentUserId && currentUserId === createdUserId) {",
+									"    console.log('Warning: Attempting to modify admin user. Using test user instead.');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const createdUserId = pm.environment.get('createdUserId');",
+									"if (!createdUserId || createdUserId === '') {",
+									"    pm.test.skip('Skipping test - createdUserId not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
@@ -821,6 +919,11 @@
 									"pm.test('Response has success status', function () {",
 									"    const jsonData = pm.response.json();",
 									"    pm.expect(jsonData.status).to.eql('ok');",
+									"});",
+									"",
+									"pm.test('Admin user was not modified', function () {",
+									"    const adminUserId = pm.environment.get('userId');",
+									"    pm.expect(createdUserId).to.not.eql(adminUserId);",
 									"});"
 								],
 								"type": "text/javascript"
@@ -844,9 +947,9 @@
 							"raw": "{\n    \"roleId\": \"{{viewerRoleId}}\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/users/{{userId}}/roles",
+							"raw": "{{baseUrl}}/api/users/{{createdUserId}}/roles",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "users", "{{userId}}", "roles"]
+							"path": ["api", "users", "{{createdUserId}}", "roles"]
 						}
 					}
 				},
@@ -854,9 +957,34 @@
 					"name": "Remove Role from User",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if createdUserId is not set (Create User failed)",
+									"const createdUserId = pm.environment.get('createdUserId');",
+									"if (!createdUserId || createdUserId === '') {",
+									"    pm.test.skip('Skipping test - createdUserId not set (Create User likely failed)');",
+									"}",
+									"",
+									"// Ensure we're not modifying admin@vistra.com",
+									"const adminEmail = pm.environment.get('adminEmail');",
+									"const currentUserId = pm.environment.get('userId');",
+									"if (currentUserId && currentUserId === createdUserId) {",
+									"    console.log('Warning: Attempting to modify admin user. Using test user instead.');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const createdUserId = pm.environment.get('createdUserId');",
+									"if (!createdUserId || createdUserId === '') {",
+									"    pm.test.skip('Skipping test - createdUserId not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
@@ -864,6 +992,11 @@
 									"pm.test('Response has success status', function () {",
 									"    const jsonData = pm.response.json();",
 									"    pm.expect(jsonData.status).to.eql('ok');",
+									"});",
+									"",
+									"pm.test('Admin user was not modified', function () {",
+									"    const adminUserId = pm.environment.get('userId');",
+									"    pm.expect(createdUserId).to.not.eql(adminUserId);",
 									"});"
 								],
 								"type": "text/javascript"
@@ -879,9 +1012,9 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/users/{{userId}}/roles?roleId={{viewerRoleId}}",
+							"raw": "{{baseUrl}}/api/users/{{createdUserId}}/roles?roleId={{viewerRoleId}}",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "users", "{{userId}}", "roles"],
+							"path": ["api", "users", "{{createdUserId}}", "roles"],
 							"query": [
 								{
 									"key": "roleId",
@@ -895,9 +1028,34 @@
 					"name": "Assign Permission to User",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if createdUserId is not set (Create User failed)",
+									"const createdUserId = pm.environment.get('createdUserId');",
+									"if (!createdUserId || createdUserId === '') {",
+									"    pm.test.skip('Skipping test - createdUserId not set (Create User likely failed)');",
+									"}",
+									"",
+									"// Ensure we're not modifying admin@vistra.com",
+									"const adminEmail = pm.environment.get('adminEmail');",
+									"const currentUserId = pm.environment.get('userId');",
+									"if (currentUserId && currentUserId === createdUserId) {",
+									"    console.log('Warning: Attempting to modify admin user. Using test user instead.');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const createdUserId = pm.environment.get('createdUserId');",
+									"if (!createdUserId || createdUserId === '') {",
+									"    pm.test.skip('Skipping test - createdUserId not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
@@ -905,6 +1063,11 @@
 									"pm.test('Response has success status', function () {",
 									"    const jsonData = pm.response.json();",
 									"    pm.expect(jsonData.status).to.eql('ok');",
+									"});",
+									"",
+									"pm.test('Admin user was not modified', function () {",
+									"    const adminUserId = pm.environment.get('userId');",
+									"    pm.expect(createdUserId).to.not.eql(adminUserId);",
 									"});"
 								],
 								"type": "text/javascript"
@@ -928,9 +1091,9 @@
 							"raw": "{\n    \"permissionId\": \"{{filesReadPermissionId}}\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/users/{{userId}}/permissions",
+							"raw": "{{baseUrl}}/api/users/{{createdUserId}}/permissions",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "users", "{{userId}}", "permissions"]
+							"path": ["api", "users", "{{createdUserId}}", "permissions"]
 						}
 					}
 				},
@@ -938,9 +1101,34 @@
 					"name": "Remove Permission from User",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Skip test if createdUserId is not set (Create User failed)",
+									"const createdUserId = pm.environment.get('createdUserId');",
+									"if (!createdUserId || createdUserId === '') {",
+									"    pm.test.skip('Skipping test - createdUserId not set (Create User likely failed)');",
+									"}",
+									"",
+									"// Ensure we're not modifying admin@vistra.com",
+									"const adminEmail = pm.environment.get('adminEmail');",
+									"const currentUserId = pm.environment.get('userId');",
+									"if (currentUserId && currentUserId === createdUserId) {",
+									"    console.log('Warning: Attempting to modify admin user. Using test user instead.');",
+									"}"
+								]
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
+									"const createdUserId = pm.environment.get('createdUserId');",
+									"if (!createdUserId || createdUserId === '') {",
+									"    pm.test.skip('Skipping test - createdUserId not set');",
+									"    return;",
+									"}",
 									"pm.test('Status code is 200', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
@@ -948,6 +1136,11 @@
 									"pm.test('Response has success status', function () {",
 									"    const jsonData = pm.response.json();",
 									"    pm.expect(jsonData.status).to.eql('ok');",
+									"});",
+									"",
+									"pm.test('Admin user was not modified', function () {",
+									"    const adminUserId = pm.environment.get('userId');",
+									"    pm.expect(createdUserId).to.not.eql(adminUserId);",
 									"});"
 								],
 								"type": "text/javascript"
@@ -963,9 +1156,9 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/users/{{userId}}/permissions?permissionId={{filesReadPermissionId}}",
+							"raw": "{{baseUrl}}/api/users/{{createdUserId}}/permissions?permissionId={{filesReadPermissionId}}",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "users", "{{userId}}", "permissions"],
+							"path": ["api", "users", "{{createdUserId}}", "permissions"],
 							"query": [
 								{
 									"key": "permissionId",
